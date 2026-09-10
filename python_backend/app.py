@@ -9,6 +9,8 @@ Servidor web de alta performance que suporta todo o ecossistema:
 
 import os
 import json
+import time
+import shutil
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, render_template_string
 from flask_cors import CORS
@@ -928,6 +930,7 @@ def test_telegram_token():
   """
   Testa dinamicamente qualquer token enviado no corpo da requisição
   diretamente na API do Telegram antes de salvar no .env.
+  Usa timeout estendido (20s) e retentativa para evitar erro de 'Read timed out' em hospedagens na nuvem (Render, VPS).
   """
   data = request.json or {}
   token = data.get("token", "").strip()
@@ -935,28 +938,283 @@ def test_telegram_token():
   if not token:
     return jsonify({"success": False, "error": "Token não fornecido"}), 400
 
-  try:
-    url = f"https://api.telegram.org/bot{token}/getMe"
-    resp = requests.get(url, timeout=6)
-    res_data = resp.json()
+  url = f"https://api.telegram.org/bot{token}/getMe"
+  last_error = None
 
-    if res_data.get("ok"):
-      result = res_data.get("result", {})
-      return jsonify({
-        "success": True,
-        "bot": {
-          "id": result.get("id"),
-          "first_name": result.get("first_name"),
-          "username": result.get("username")
-        }
-      })
+  for attempt in range(2):
+    try:
+      # Timeout de 20s para permitir conexões lentas ou com proxy em nuvem (Render/VPS)
+      resp = requests.get(url, timeout=20)
+      res_data = resp.json()
+
+      if res_data.get("ok"):
+        result = res_data.get("result", {})
+        return jsonify({
+          "success": True,
+          "bot": {
+            "id": result.get("id"),
+            "first_name": result.get("first_name"),
+            "username": result.get("username")
+          }
+        })
+      else:
+        return jsonify({
+          "success": False,
+          "error": res_data.get("description", "Token recusado pelo Telegram")
+        }), 400
+    except requests.exceptions.Timeout:
+      last_error = f"Tempo limite excedido ao contatar api.telegram.org (timeout 20s, tentativa {attempt + 1}/2). A rede da hospedagem está lenta para contatar os servidores do Telegram."
+      time.sleep(1)
+    except Exception as e:
+      last_error = f"Falha de rede ao contatar Telegram: {str(e)}"
+      time.sleep(1)
+
+  return jsonify({
+    "success": False, 
+    "error": last_error or "Não foi possível conectar à API do Telegram no momento.",
+    "can_force_save": True
+  }), 504
+
+# ─────────────────────────────────────────────────────────────
+# GESTÃO & EDIÇÃO DE ARQUIVOS DO BOT DIRETAMENTE NO HOSPEDADO
+# ─────────────────────────────────────────────────────────────
+
+ALLOWED_BOT_FILES = {
+  'bot.py': {
+    'title': 'bot.py (Lógica Principal do Bot)',
+    'desc': 'Comandos /start, /vip, catálogo de produtos, teclado inline e respostas automáticas.',
+    'type': 'python'
+  },
+  'models.py': {
+    'title': 'models.py (Banco de Dados & Tabelas)',
+    'desc': 'Modelos SQLAlchemy: Usuários, Conteúdos, Pedidos PIX e Postagens Agendadas.',
+    'type': 'python'
+  },
+  'scheduler.py': {
+    'title': 'scheduler.py (Worker de Agendamento)',
+    'desc': 'Processo em background para publicação programada no canal do Telegram.',
+    'type': 'python'
+  },
+  'main.py': {
+    'title': 'main.py (Supervisor de Processos 24/7)',
+    'desc': 'Inicialização simultânea do Flask e do Bot com auto-recuperação contra quedas.',
+    'type': 'python'
+  },
+  'app.py': {
+    'title': 'app.py (Servidor Web Flask & API)',
+    'desc': 'Rotas REST da API e entrega do Painel de Controle web.',
+    'type': 'python'
+  },
+  'bot_settings.json': {
+    'title': 'bot_settings.json (Configurações de Textos & PIX)',
+    'desc': 'Textos de boas-vindas, valores do VIP, chave PIX e links de suporte.',
+    'type': 'json'
+  },
+  '.env.example': {
+    'title': '.env.example (Modelo de Chaves & Ambiente)',
+    'desc': 'Exemplo das chaves TELEGRAM_BOT_TOKEN, INSTAGRAM_URL, etc.',
+    'type': 'env'
+  },
+  'render.yaml': {
+    'title': 'render.yaml (Blueprint de Deploy no Render)',
+    'desc': 'Configuração de build e start no Render Cloud.',
+    'type': 'yaml'
+  },
+  'Procfile': {
+    'title': 'Procfile (Inicialização no Render/VPS)',
+    'desc': 'Comando de start do Render (web: python main.py).',
+    'type': 'text'
+  },
+  'requirements.txt': {
+    'title': 'requirements.txt (Bibliotecas Python)',
+    'desc': 'Dependências pip instaladas na hospedagem.',
+    'type': 'text'
+  }
+}
+
+def resolve_bot_file_path(filename):
+  """Resolve o caminho absoluto seguro do arquivo no backend, impedindo navegação traversal."""
+  clean_name = os.path.basename(filename)
+  if clean_name not in ALLOWED_BOT_FILES:
+    return None
+  
+  # Procura no diretório do app.py
+  app_dir = os.path.dirname(os.path.abspath(__file__))
+  path1 = os.path.join(app_dir, clean_name)
+  if os.path.exists(path1):
+    return path1
+    
+  # Procura no diretório de trabalho atual
+  path2 = os.path.join(os.getcwd(), clean_name)
+  if os.path.exists(path2):
+    return path2
+    
+  # Caso ainda não exista (ex: bot_settings.json novo), retorna o caminho em app_dir
+  return path1
+
+@app.route('/api/bot/files', methods=['GET'])
+def list_bot_files():
+  """Lista todos os arquivos do robô disponíveis para visualização e edição na nuvem."""
+  file_list = []
+  app_dir = os.path.dirname(os.path.abspath(__file__))
+
+  for filename, meta in ALLOWED_BOT_FILES.items():
+    filepath = resolve_bot_file_path(filename)
+    exists = os.path.exists(filepath) if filepath else False
+    size = os.path.getsize(filepath) if exists else 0
+    mtime = datetime.fromtimestamp(os.path.getmtime(filepath)).strftime("%d/%m/%Y %H:%M:%S") if exists else "-"
+    
+    file_list.append({
+      "filename": filename,
+      "title": meta['title'],
+      "desc": meta['desc'],
+      "type": meta['type'],
+      "exists": exists,
+      "size": size,
+      "last_modified": mtime
+    })
+
+  return jsonify({
+    "success": True,
+    "files": file_list,
+    "base_dir": app_dir
+  })
+
+@app.route('/api/bot/file', methods=['GET', 'POST'])
+def handle_bot_file():
+  """
+  GET: Lê o conteúdo de um arquivo do bot.
+  POST: Salva novas alterações no arquivo do bot com validação de sintaxe e backup automático.
+  """
+  if request.method == 'GET':
+    filename = request.args.get('name', 'bot.py')
+    filepath = resolve_bot_file_path(filename)
+    
+    if not filepath:
+      return jsonify({"success": False, "error": f"Arquivo '{filename}' não permitido ou inválido."}), 400
+      
+    if not os.path.exists(filepath):
+      # Se for bot_settings.json, inicializa com as configurações atuais
+      if filename == 'bot_settings.json':
+        content = json.dumps(load_bot_settings(), indent=2, ensure_ascii=False)
+      else:
+        return jsonify({"success": False, "error": f"Arquivo '{filename}' ainda não existe no servidor."}), 404
     else:
+      try:
+        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+          content = f.read()
+      except Exception as e:
+        return jsonify({"success": False, "error": f"Erro ao ler arquivo: {str(e)}"}), 500
+
+    size = len(content.encode('utf-8'))
+    return jsonify({
+      "success": True,
+      "filename": filename,
+      "content": content,
+      "size": size,
+      "meta": ALLOWED_BOT_FILES.get(filename, {})
+    })
+
+  # POST: Salva o conteúdo
+  data = request.json or {}
+  filename = data.get('name', '').strip()
+  content = data.get('content', '')
+
+  if not filename:
+    return jsonify({"success": False, "error": "Nome do arquivo não fornecido."}), 400
+
+  filepath = resolve_bot_file_path(filename)
+  if not filepath:
+    return jsonify({"success": False, "error": f"Arquivo '{filename}' não permitido para edição."}), 400
+
+  meta = ALLOWED_BOT_FILES.get(filename, {})
+  file_type = meta.get('type')
+
+  # Validação de sintaxe antes de salvar para evitar quebrar o robô
+  if file_type == 'python':
+    try:
+      compile(content, filename, 'exec')
+    except SyntaxError as syn_err:
       return jsonify({
         "success": False,
-        "error": res_data.get("description", "Token recusado pelo Telegram")
+        "error": f"Erro de sintaxe Python na linha {syn_err.lineno}: {syn_err.msg}",
+        "line": syn_err.lineno,
+        "offset": syn_err.offset,
+        "text": syn_err.text
       }), 400
-  except Exception as e:
-    return jsonify({"success": False, "error": f"Falha de rede ao contatar Telegram: {str(e)}"}), 500
+  elif file_type == 'json':
+    try:
+      json.loads(content)
+    except Exception as json_err:
+      return jsonify({
+        "success": False,
+        "error": f"JSON inválido: {str(json_err)}"
+      }), 400
+
+  # Cria backup seguro antes de sobrescrever
+  try:
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    backup_dir = os.path.join(app_dir, '.backups')
+    os.makedirs(backup_dir, exist_ok=True)
+    if os.path.exists(filepath):
+      timestamp = int(time.time())
+      backup_file = os.path.join(backup_dir, f"{filename}.{timestamp}.bak")
+      shutil.copy2(filepath, backup_file)
+  except Exception as bkp_err:
+    print(f"⚠️ Aviso ao criar backup: {bkp_err}")
+
+  # Salva o arquivo no disco
+  try:
+    with open(filepath, 'w', encoding='utf-8') as f:
+      f.write(content)
+
+    # Se for bot_settings.json, atualiza também a memória
+    if filename == 'bot_settings.json':
+      try:
+        new_settings = json.loads(content)
+        save_bot_settings(new_settings)
+        if 'telegramToken' in new_settings and new_settings['telegramToken']:
+          os.environ['TELEGRAM_BOT_TOKEN'] = new_settings['telegramToken'].strip()
+      except Exception:
+        pass
+
+    return jsonify({
+      "success": True,
+      "message": f"Arquivo '{filename}' salvo e validado com sucesso no servidor!",
+      "filename": filename,
+      "size": len(content.encode('utf-8')),
+      "saved_at": datetime.utcnow().strftime("%d/%m/%Y %H:%M:%S UTC")
+    })
+  except Exception as write_err:
+    return jsonify({"success": False, "error": f"Erro ao gravar no disco: {str(write_err)}"}), 500
+
+@app.route('/api/bot/validate-syntax', methods=['POST'])
+def validate_python_syntax():
+  """Testa a sintaxe de um código Python ou JSON sem salvar no disco."""
+  data = request.json or {}
+  filename = data.get('name', 'bot.py')
+  content = data.get('content', '')
+
+  if filename.endswith('.py'):
+    try:
+      compile(content, filename, 'exec')
+      return jsonify({"valid": True, "message": "Código Python 100% válido e livre de erros de sintaxe!"})
+    except SyntaxError as e:
+      return jsonify({
+        "valid": False,
+        "error": f"Linha {e.lineno}: {e.msg}",
+        "line": e.lineno,
+        "offset": e.offset,
+        "text": e.text
+      }), 400
+  elif filename.endswith('.json'):
+    try:
+      json.loads(content)
+      return jsonify({"valid": True, "message": "Estrutura JSON válida!"})
+    except Exception as e:
+      return jsonify({"valid": False, "error": str(e)}), 400
+
+  return jsonify({"valid": True, "message": "Arquivo de texto válido."})
 
 @app.route('/api/bot/settings', methods=['GET', 'POST'])
 def bot_settings_endpoint():

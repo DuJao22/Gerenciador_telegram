@@ -13,6 +13,13 @@ from telebot import types
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Configura timeouts generosos para evitar 'Read timed out' em redes de hospedagem na nuvem (Render, VPS)
+telebot.apihelper.SESSION_TIME_TO_WAIT = 30
+if hasattr(telebot.apihelper, 'READ_TIMEOUT'):
+  telebot.apihelper.READ_TIMEOUT = 30
+if hasattr(telebot.apihelper, 'CONNECT_TIMEOUT'):
+  telebot.apihelper.CONNECT_TIMEOUT = 20
+
 # Importa modelos e banco de dados do painel
 from models import init_db, get_session, User, Content, Product, Order, ScheduledPost
 
