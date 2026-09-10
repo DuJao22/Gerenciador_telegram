@@ -1115,10 +1115,10 @@ PORT=5000
   },
   'render.yaml': {
     filename: 'render.yaml',
-    description: 'Blueprint oficial para publicar no Render.com com 1 clique (Auto-deploy, build e anti-sleep)',
+    description: 'Blueprint oficial para publicar no Render.com com 1 clique (Auto-deploy com Gunicorn WSGI)',
     language: 'yaml',
     code: `# ==============================================================================
-# RENDER BLUEPRINT (render.yaml) - CURSO PYTHON BOT & CONTENT OS
+# RENDER BLUEPRINT (render.yaml) - AUTOMATED DEPLOYMENT FOR RENDER.COM
 # ==============================================================================
 # No Render.com, clique em "New +" -> "Blueprint" e selecione este repositório!
 
@@ -1129,12 +1129,16 @@ services:
     region: oregon
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    startCommand: gunicorn --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT wsgi:app
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.8
+      - key: PORT
+        value: 10000
+      - key: SECRET_KEY
+        generateValue: true
       - key: TELEGRAM_BOT_TOKEN
         value: 8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY
       - key: TELEGRAM_CHANNEL_ID
@@ -1143,10 +1147,58 @@ services:
         value: "https://instagram.com/seuperfil"
       - key: SUPPORT_USERNAME
         value: "suporte_hub"
-      - key: SECRET_KEY
-        generateValue: true
       - key: DATABASE_URL
         value: "sqlite:///content_os.db"
+`
+  },
+  'wsgi.py': {
+    filename: 'wsgi.py',
+    description: 'Entrypoint de produção WSGI para Gunicorn no Render (Supervisão 24/7 de Bot e Agendador)',
+    language: 'python',
+    code: `"""
+CONTENT OS - WSGI ENTRYPOINT COM GUNICORN (wsgi.py)
+Inicializa o servidor Flask através do Gunicorn enquanto mantém o Bot Telegram
+e o Agendador de tarefas rodando em threads protegidas 24/7.
+"""
+
+import os
+import time
+import threading
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from app import app
+from models import init_db
+from bot import verify_and_identify_bot, run_bot_forever
+from scheduler import check_and_publish_scheduled_posts
+from apscheduler.schedulers.background import BackgroundScheduler
+
+_services_initialized = False
+_init_lock = threading.Lock()
+
+def init_production_services():
+  global _services_initialized
+  with _init_lock:
+    if _services_initialized:
+      return
+    _services_initialized = True
+
+    init_db()
+    verify_and_identify_bot()
+
+    # Threads de background supervisionadas
+    bot_thread = threading.Thread(target=run_bot_forever, daemon=True)
+    bot_thread.start()
+
+    sched = BackgroundScheduler()
+    sched.add_job(check_and_publish_scheduled_posts, 'interval', seconds=20)
+    sched.start()
+
+init_production_services()
+
+if __name__ == '__main__':
+  app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
 `
   },
   'Dockerfile': {
