@@ -419,7 +419,16 @@ export default function App() {
       </header>
 
       {/* Main Body */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile Menu Backdrop */}
+        {isMobileMenuOpen && (
+          <div
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-200"
+            aria-hidden="true"
+          />
+        )}
+
         {/* Sidebar Nav */}
         <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-950 border-r border-slate-800/80 transform transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 flex flex-col justify-between ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-0 max-lg:-translate-x-full'
