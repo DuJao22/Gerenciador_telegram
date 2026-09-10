@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Users, 
   Crown, 
@@ -19,9 +19,17 @@ import {
   ChevronRight,
   Settings,
   Smartphone,
-  BookOpen
+  BookOpen,
+  Code2,
+  FileCode,
+  Copy,
+  Check,
+  Download,
+  Terminal,
+  ExternalLink
 } from 'lucide-react';
 import { ContentItem, ScheduledPost, TelegramUser, Order } from '../types';
+import { PYTHON_FILES } from '../pythonCode';
 
 interface DashboardViewProps {
   contents: ContentItem[];
@@ -48,6 +56,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenSettings,
   onOpenSimulator
 }) => {
+  const [selectedDashboardFile, setSelectedDashboardFile] = useState<string>('bot.py');
+  const [copiedCode, setCopiedCode] = useState<boolean>(false);
+
+  const currentDashboardFile = PYTHON_FILES[selectedDashboardFile] || PYTHON_FILES['bot.py'];
+
+  const handleCopyDashboardCode = () => {
+    navigator.clipboard.writeText(currentDashboardFile.code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
   const totalRevenue = orders
     .filter(o => o.status === 'pago')
     .reduce((acc, curr) => acc + curr.amount, 0);
@@ -96,7 +114,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Quick Navigation & Direct Control Hub */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <button
           onClick={onOpenSettings}
           className="p-3.5 rounded-xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-cyan-500/50 text-left transition-all group cursor-pointer shadow-sm hover:shadow-cyan-500/10"
@@ -148,6 +166,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
             Gerenciar preços, VIPs e links
+          </p>
+        </button>
+
+        <button
+          onClick={() => onNavigateTab('python')}
+          className="p-3.5 rounded-xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-cyan-500/50 text-left transition-all group cursor-pointer shadow-sm hover:shadow-cyan-500/10"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors">
+              <Code2 className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">Editor</span>
+          </div>
+          <div className="font-bold text-xs text-white group-hover:text-cyan-300 transition-colors">
+            Código & Arquivos
+          </div>
+          <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
+            Editar bot.py, app.py e salvar no host
           </p>
         </button>
 
@@ -465,6 +501,140 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION: CÓDIGO PYTHON & ARQUITETURA DO ROBÔ (Visualização Direta no Index) */}
+      <div className="space-y-4 pt-4 border-t border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+              <Code2 className="w-5 h-5 text-cyan-400" />
+              <span>CÓDIGO PYTHON & ARQUITETURA DO ROBÔ</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                Acesso Direto no Index
+              </span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Visualize a estrutura do sistema, inspecione os arquivos e acesse o editor com salvamento no servidor.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyDashboardCode}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors"
+            >
+              {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedCode ? 'Copiado!' : 'Copiar'}</span>
+            </button>
+
+            <button
+              onClick={() => onNavigateTab('python')}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-lg shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
+            >
+              <span>💻 Abrir Editor Completo & Salvar</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Architecture Flow Diagram */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-cyan-400" />
+              <span>Visão da Arquitetura do Sistema</span>
+            </h4>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              Operação em Tempo Real
+            </span>
+          </div>
+
+          <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-[11px] text-cyan-300 overflow-x-auto leading-relaxed">
+            <pre>{`                    INTERNET
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+        TELEGRAM                  PAINEL WEB
+          │                         │
+          ▼                         ▼
+   Python Telebot (bot.py)    Flask (app.py)
+          │                         │
+          └──────────┬──────────────┘
+                     │
+                  REST API & ORM
+                     │
+                     ▼
+              ┌─────────────┐
+              │   DATABASE  │
+              │   SQLite    │
+              └─────────────┘
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+       Users     Contents    Purchases
+                     │
+                     ▼
+             APScheduler Worker (scheduler.py)
+                     │
+                     ▼
+              Telegram Bot API`}</pre>
+          </div>
+        </div>
+
+        {/* Code Preview Box */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+          {/* File Tabs */}
+          <div className="bg-slate-950 px-3 pt-3 border-b border-slate-800 flex items-center gap-1 overflow-x-auto">
+            {Object.keys(PYTHON_FILES).map((filename) => (
+              <button
+                key={filename}
+                onClick={() => setSelectedDashboardFile(filename)}
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-mono font-medium rounded-t-lg transition-all shrink-0 ${
+                  selectedDashboardFile === filename
+                    ? 'bg-slate-900 text-cyan-400 border-t-2 border-t-cyan-500 border-x border-slate-800'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+                }`}
+              >
+                <FileCode className="w-3.5 h-3.5" />
+                <span>{filename}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Header */}
+          <div className="px-4 py-2.5 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <span className="font-semibold text-white font-mono shrink-0">{currentDashboardFile.filename}</span>
+              <span className="text-slate-600">•</span>
+              <span className="truncate">{currentDashboardFile.description}</span>
+            </div>
+            <div className="text-[11px] font-mono text-slate-500 shrink-0 ml-2">
+              {currentDashboardFile.code.split('\n').length} linhas
+            </div>
+          </div>
+
+          {/* Code Viewer */}
+          <div className="p-4 bg-slate-950 overflow-x-auto max-h-[420px] overflow-y-auto font-mono text-xs text-slate-200 leading-relaxed select-all">
+            <pre>
+              <code>{currentDashboardFile.code}</code>
+            </pre>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="px-4 py-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+            <span className="text-xs text-slate-400">
+              Quer editar o arquivo e salvar no servidor agora?
+            </span>
+            <button
+              onClick={() => onNavigateTab('python')}
+              className="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>Editar & Salvar Arquivo</span>
+            </button>
           </div>
         </div>
       </div>

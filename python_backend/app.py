@@ -187,6 +187,9 @@ def render_fallback_dashboard_html():
         <button onclick="switchTab('simulator')" id="nav-simulator" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white border border-transparent transition-all flex items-center gap-1.5 whitespace-nowrap">
           <span>📱 Simulador</span>
         </button>
+        <button onclick="switchTab('python')" id="nav-python" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white border border-transparent transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span>💻 Código &amp; Arquivos</span>
+        </button>
       </nav>
 
       <div class="flex items-center gap-2">
@@ -238,7 +241,7 @@ def render_fallback_dashboard_html():
       <!-- Quick Action Cards (Similar ao app.news) -->
       <div class="space-y-3">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Atalhos de Acesso Rápido</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div onclick="switchTab('settings')" class="p-4 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/40 transition-all cursor-pointer group">
             <div class="flex items-center justify-between mb-2">
               <span class="text-2xl">⚙️</span>
@@ -264,6 +267,15 @@ def render_fallback_dashboard_html():
             </div>
             <h4 class="font-bold text-white text-sm group-hover:text-emerald-300 transition-colors">Produtos &amp; Vendas PIX</h4>
             <p class="text-xs text-slate-400 mt-1">Cadastre cursos, packs e produtos digitais com pagamento via PIX.</p>
+          </div>
+
+          <div onclick="switchTab('python')" class="p-4 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/40 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-2xl">💻</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400">Editor</span>
+            </div>
+            <h4 class="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors">Código &amp; Arquivos</h4>
+            <p class="text-xs text-slate-400 mt-1">Acesse e edite bot.py, models.py, app.py com salvamento no servidor.</p>
           </div>
 
           <div onclick="switchTab('simulator')" class="p-4 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 transition-all cursor-pointer group">
@@ -298,6 +310,58 @@ def render_fallback_dashboard_html():
           <span class="text-xs text-slate-400 font-medium block">Pedidos Registrados</span>
           <span class="text-2xl font-bold text-purple-400 tracking-tight mt-1 block">{stats['orders']}</span>
           <span class="text-[11px] text-slate-400 mt-1 block">Transações salvas</span>
+        </div>
+      </div>
+
+      <!-- Visualização Direta no Index: Arquitetura & Código do Bot -->
+      <div class="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>💻 CÓDIGO PYTHON &amp; ARQUITETURA DO ROBÔ</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                Acesso Direto no Index
+              </span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Visualize a arquitetura do sistema e edite diretamente arquivos como <code>bot.py</code>, <code>models.py</code> e <code>app.py</code>.
+            </p>
+          </div>
+          <button onclick="switchTab('python')" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2 self-start sm:self-auto cursor-pointer">
+            <span>💻 Abrir Editor Completo &amp; Salvar Arquivos</span>
+            <span>&rarr;</span>
+          </button>
+        </div>
+
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-[11px] text-cyan-300 overflow-x-auto leading-relaxed">
+          <pre>                    INTERNET
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+        TELEGRAM                  PAINEL WEB
+          │                         │
+          ▼                         ▼
+   Python Telebot (bot.py)    Flask (app.py)
+          │                         │
+          └──────────┬──────────────┘
+                     │
+                  REST API &amp; ORM
+                     │
+                     ▼
+              ┌─────────────┐
+              │   DATABASE  │
+              │   SQLite    │
+              └─────────────┘
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+       Users     Contents    Purchases
+                     │
+                     ▼
+             APScheduler Worker (scheduler.py)
+                     │
+                     ▼
+              Telegram Bot API</pre>
         </div>
       </div>
     </div>
@@ -526,6 +590,127 @@ def render_fallback_dashboard_html():
       </div>
     </div>
 
+    <!-- TAB 6: CÓDIGO PYTHON & ARQUIVOS DO BOT -->
+    <div id="tab-python" class="tab-content space-y-6">
+      <!-- Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+        <div>
+          <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <span>💻 CÓDIGO PYTHON &amp; ARQUITETURA</span>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
+              Python 3.10+ / Flask / Telebot
+            </span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Visualize, teste a sintaxe e <strong>edite os arquivos do bot diretamente no servidor hospedado</strong> com salvamento seguro e backup.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="validateCurrentPythonSyntax()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-semibold rounded-lg border border-cyan-500/30 transition-colors">
+            <span>🔍 Validar Sintaxe</span>
+          </button>
+          <button onclick="saveCurrentPythonFile()" id="btn-save-python" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-cyan-600/20 transition-all">
+            <span>💾 Salvar no Servidor</span>
+          </button>
+          <button onclick="copyPythonEditorCode()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors">
+            <span id="txt-copy-python">📋 Copiar</span>
+          </button>
+          <button onclick="downloadCurrentPythonFile()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors">
+            <span>⬇️ Baixar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Save & Validation Status Banner -->
+      <div id="python-status-banner" class="hidden p-3 rounded-xl border text-xs flex items-center justify-between gap-3">
+        <span id="python-status-text"></span>
+        <button onclick="document.getElementById('python-status-banner').classList.add('hidden')" class="text-slate-400 hover:text-white text-xs px-2 py-0.5">&times;</button>
+      </div>
+
+      <!-- Architecture Diagram (From Screenshot) -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-md">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <span>Visão da Arquitetura do Sistema</span>
+          </h3>
+          <span class="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+            Pipeline 24/7 Ativo
+          </span>
+        </div>
+        <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-[11px] text-cyan-300 overflow-x-auto leading-relaxed">
+          <pre>                    INTERNET
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+        TELEGRAM                  PAINEL WEB
+          │                         │
+          ▼                         ▼
+   Python Telebot (bot.py)    Flask (app.py)
+          │                         │
+          └──────────┬──────────────┘
+                     │
+                  REST API &amp; ORM
+                     │
+                     ▼
+              ┌─────────────┐
+              │   DATABASE  │
+              │   SQLite    │
+              └─────────────┘
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+       Users     Contents    Purchases
+                     │
+                     ▼
+             APScheduler Worker (scheduler.py)
+                     │
+                     ▼
+              Telegram Bot API</pre>
+        </div>
+      </div>
+
+      <!-- Code Browser & Live Editor Container -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+        <!-- File Tabs -->
+        <div id="python-file-tabs" class="bg-slate-950 px-3 pt-3 border-b border-slate-800 flex items-center gap-1 overflow-x-auto">
+          <!-- Populated by loadPythonFilesList() -->
+        </div>
+
+        <!-- File Header -->
+        <div class="px-4 py-2.5 bg-slate-900/95 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <span id="python-file-name" class="font-semibold text-white font-mono">bot.py</span>
+            <span class="text-slate-600">•</span>
+            <span id="python-file-desc" class="text-slate-300">Bot Telegram supervisionado com validação de token, identificação (@username) e auto-recovery 24/7</span>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] font-mono text-slate-400">
+            <span id="python-file-lines">0 linhas</span>
+          </div>
+        </div>
+
+        <!-- Editor Area -->
+        <div class="relative bg-slate-950">
+          <textarea id="python-code-editor" spellcheck="false" class="w-full h-[550px] p-4 bg-transparent font-mono text-xs text-slate-200 leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500/50" placeholder="Carregando código do servidor..."></textarea>
+        </div>
+
+        <!-- Bottom Action Bar -->
+        <div class="px-4 py-2.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs">
+          <span class="text-slate-500 text-[11px]">
+            🛡️ Sintaxe testada automaticamente antes de gravar no disco do servidor.
+          </span>
+          <div class="flex items-center gap-2">
+            <button onclick="validateCurrentPythonSyntax()" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded text-xs border border-slate-700 transition-colors">
+              Testar Sintaxe
+            </button>
+            <button onclick="saveCurrentPythonFile()" class="px-4 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-xs transition-colors">
+              Salvar Arquivo
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <!-- MODAL: NOVO PRODUTO -->
@@ -589,6 +774,9 @@ def render_fallback_dashboard_html():
 
       if (tabId === 'products') {{
         loadProductsTable();
+      }}
+      if (tabId === 'python') {{
+        loadPythonFilesList();
       }}
     }}
 
@@ -822,9 +1010,155 @@ def render_fallback_dashboard_html():
       `;
     }}
 
-    // Auto load on open
+    let currentLoadedPythonFile = 'bot.py';
+
+    async function loadPythonFilesList() {{
+      try {{
+        const resp = await fetch('/api/bot/files');
+        const data = await resp.json();
+        if (!data.success || !data.files) return;
+
+        const tabsContainer = document.getElementById('python-file-tabs');
+        tabsContainer.innerHTML = '';
+
+        data.files.forEach(f => {{
+          const btn = document.createElement('button');
+          btn.className = `flex items-center gap-2 px-3.5 py-2 text-xs font-mono font-medium rounded-t-lg transition-all shrink-0 ${{
+            f.filename === currentLoadedPythonFile
+              ? 'bg-slate-900 text-cyan-400 border-t-2 border-t-cyan-500 border-x border-slate-800'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+          }}`;
+          btn.innerHTML = `<span>📄</span><span>${{f.filename}}</span>`;
+          btn.onclick = () => selectPythonFile(f.filename, f.desc);
+          tabsContainer.appendChild(btn);
+        }});
+
+        loadPythonFileContent(currentLoadedPythonFile);
+      }} catch (err) {{
+        console.error('Erro ao carregar lista de arquivos:', err);
+      }}
+    }}
+
+    async function selectPythonFile(filename, desc) {{
+      currentLoadedPythonFile = filename;
+      document.getElementById('python-file-name').textContent = filename;
+      if (desc) document.getElementById('python-file-desc').textContent = desc;
+      loadPythonFilesList();
+    }}
+
+    async function loadPythonFileContent(filename) {{
+      const editor = document.getElementById('python-code-editor');
+      editor.value = '# Carregando ' + filename + ' do servidor...';
+      try {{
+        const resp = await fetch(`/api/bot/file?name=${{encodeURIComponent(filename)}}`);
+        const data = await resp.json();
+        if (data.success) {{
+          editor.value = data.content || '';
+          const lines = (data.content || '').split('\\n').length;
+          const kb = ((data.size || 0) / 1024).toFixed(1);
+          document.getElementById('python-file-lines').textContent = `${{lines}} linhas • ${{kb}} KB`;
+        }} else {{
+          editor.value = '# Erro ao carregar arquivo: ' + (data.error || 'Desconhecido');
+        }}
+      }} catch (err) {{
+        editor.value = '# Falha de rede ao contatar servidor: ' + err.message;
+      }}
+    }}
+
+    async function saveCurrentPythonFile() {{
+      const filename = currentLoadedPythonFile;
+      const content = document.getElementById('python-code-editor').value;
+      const banner = document.getElementById('python-status-banner');
+      const text = document.getElementById('python-status-text');
+      const btn = document.getElementById('btn-save-python');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Salvando...';
+      banner.className = 'p-3 rounded-xl border text-xs flex items-center justify-between gap-3 bg-cyan-950/60 border-cyan-500/40 text-cyan-300';
+      text.textContent = 'Gravando arquivo no servidor e gerando backup...';
+      banner.classList.remove('hidden');
+
+      try {{
+        const resp = await fetch('/api/bot/file', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ name: filename, content: content }})
+        }});
+        const data = await resp.json();
+        if (data.success) {{
+          banner.className = 'p-3 rounded-xl border text-xs flex items-center justify-between gap-3 bg-emerald-950/60 border-emerald-500/40 text-emerald-300';
+          text.textContent = `✅ Arquivo "${{filename}}" salvo no disco do servidor com sucesso! Backup criado automaticamente.`;
+        }} else {{
+          banner.className = 'p-3 rounded-xl border text-xs flex items-center justify-between gap-3 bg-rose-950/60 border-rose-500/40 text-rose-300';
+          text.textContent = `❌ Erro ao salvar: ${{data.error || 'Falha desconhecida'}}`;
+        }}
+      }} catch (err) {{
+        banner.className = 'p-3 rounded-xl border text-xs flex items-center justify-between gap-3 bg-rose-950/60 border-rose-500/40 text-rose-300';
+        text.textContent = `❌ Falha de rede ao contatar o servidor: ${{err.message}}`;
+      }} finally {{
+        btn.disabled = false;
+        btn.textContent = '💾 Salvar no Servidor';
+      }}
+    }}
+
+    async function validateCurrentPythonSyntax() {{
+      const filename = currentLoadedPythonFile;
+      const content = document.getElementById('python-code-editor').value;
+      const banner = document.getElementById('python-status-banner');
+      const text = document.getElementById('python-status-text');
+
+      banner.className = 'p-3 rounded-xl border text-xs flex items-center justify-between gap-3 bg-slate-900 border-slate-700 text-slate-300';
+      text.textContent = 'Analisando sintaxe...';
+      banner.classList.remove('hidden');
+
+      try {{
+        const resp = await fetch('/api/bot/validate-syntax', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ name: filename, content: content }})
+        }});
+        const data = await resp.json();
+        if (data.success && data.valid) {{
+          banner.className = 'p-3 rounded-xl border text-xs flex items-center justify-between gap-3 bg-emerald-950/60 border-emerald-500/40 text-emerald-300';
+          text.textContent = `✅ Sintaxe perfeita! ${{filename}} está 100% válido e pronto para execução.`;
+        }} else {{
+          banner.className = 'p-3 rounded-xl border text-xs flex items-center justify-between gap-3 bg-rose-950/60 border-rose-500/40 text-rose-300';
+          text.textContent = `❌ ${{data.error || 'Erro de sintaxe encontrado'}}`;
+        }}
+      }} catch (err) {{
+        banner.className = 'p-3 rounded-xl border text-xs flex items-center justify-between gap-3 bg-rose-950/60 border-rose-500/40 text-rose-300';
+        text.textContent = `❌ Falha ao validar: ${{err.message}}`;
+      }}
+    }}
+
+    function copyPythonEditorCode() {{
+      const editor = document.getElementById('python-code-editor');
+      navigator.clipboard.writeText(editor.value);
+      const txt = document.getElementById('txt-copy-python');
+      txt.textContent = '✅ Copiado!';
+      setTimeout(() => {{ txt.textContent = '📋 Copiar'; }}, 2000);
+    }}
+
+    function downloadCurrentPythonFile() {{
+      const filename = currentLoadedPythonFile;
+      const content = document.getElementById('python-code-editor').value;
+      const blob = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }}
+
+    // Auto load on open with URL tab detection
     document.addEventListener('DOMContentLoaded', () => {{
       loadProductsTable();
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') || (window.location.hash ? window.location.hash.replace('#', '') : null);
+      if (tabParam === 'python' || tabParam === 'code' || tabParam === 'arquivos') {{
+        switchTab('python');
+      }}
     }});
   </script>
 </body>

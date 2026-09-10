@@ -55,8 +55,16 @@ import { BotTokenSettingsModal } from './components/BotTokenSettingsModal';
 import { PWAInstallBanner, PWAInstallHeaderButton } from './components/PWAInstallBanner';
 
 export default function App() {
-  // Navigation active tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'audience' | 'content' | 'publishing' | 'telegram' | 'monetization' | 'python'>('dashboard');
+  // Navigation active tab with URL query / hash detection
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'audience' | 'content' | 'publishing' | 'telegram' | 'monetization' | 'python'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'python' || tab === 'code' || tab === 'arquivos') return 'python';
+      if (window.location.hash === '#python' || window.location.hash === '#code') return 'python';
+    }
+    return 'dashboard';
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isTelegramSimOpen, setIsTelegramSimOpen] = useState(false);
   const [isNewContentModalOpen, setIsNewContentModalOpen] = useState(false);
@@ -407,13 +415,18 @@ export default function App() {
             <span className="hidden sm:inline">+ Novo Conteúdo</span>
           </button>
 
-          {/* Python Code export shortcut */}
+          {/* Python Code & File Editor header button */}
           <button
-            onClick={() => setActiveTab('python')}
-            title="Código Python & Deploy"
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-900 border border-slate-800 transition-colors"
+            onClick={() => setActiveTab(activeTab === 'python' ? 'dashboard' : 'python')}
+            title="Acessar e editar código fonte do bot"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+              activeTab === 'python'
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
+                : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
+            }`}
           >
-            <Code2 className="w-4 h-4" />
+            <Code2 className="w-4 h-4 text-cyan-400" />
+            <span className="hidden md:inline">Código & Arquivos</span>
           </button>
         </div>
       </header>
