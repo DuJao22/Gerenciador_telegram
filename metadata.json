@@ -1,0 +1,6 @@
+{
+  "name": "Content OS - Telegram Bot & Web Platform",
+  "description": "Plataforma completa de distribuição, agendamento e venda de conteúdo no Telegram com bot interativo e painel administrativo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
