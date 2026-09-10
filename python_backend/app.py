@@ -9,7 +9,7 @@ Servidor web de alta performance que suporta todo o ecossistema:
 
 import os
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, render_template_string
 from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
@@ -19,7 +19,13 @@ from bot import verify_and_identify_bot, broadcast_message_to_subscribers, bot
 
 load_dotenv()
 
-app = Flask(__name__)
+# Determina o diretório de arquivos estáticos compilados (React Vite)
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+DIST_DIR = os.path.join(CURRENT_DIR, 'dist')
+if not os.path.exists(DIST_DIR):
+  DIST_DIR = os.path.join(os.getcwd(), 'dist')
+
+app = Flask(__name__, static_folder=DIST_DIR if os.path.exists(DIST_DIR) else None)
 CORS(app) # Permite que o frontend React ou outros clientes consumam a API sem bloqueio
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'content-os-secret-key-2026')
@@ -30,23 +36,254 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 init_db()
 
 # ─────────────────────────────────────────────────────────────
-# 1. HEALTHCHECK & STATUS DO BOT TELEGRAM (RENDER READY)
+# 1. PÁGINA INICIAL (INDEX), DASHBOARD & ASSETS
 # ─────────────────────────────────────────────────────────────
 
-@app.route('/', methods=['GET'])
-def root_status():
-  """Endpoint raiz otimizado para o Health Check do Render e visualização rápida."""
-  return jsonify({
-    "status": "online",
-    "service": "Curso Python Bot & Content OS Engine",
-    "platform": "Render Ready",
-    "timestamp": datetime.utcnow().isoformat(),
-    "docs": {
-      "health": "/api/health",
-      "bot_status": "/api/bot/status",
-      "ping": "/ping"
+def get_dashboard_stats():
+  """Coleta métricas rápidas do banco de dados para o index."""
+  session = get_session()
+  try:
+    total_users = session.query(User).count()
+    premium_users = session.query(User).filter_by(is_premium=True).count()
+    total_products = session.query(Product).count()
+    total_orders = session.query(Order).count()
+    return {
+      "users": total_users,
+      "premium": premium_users,
+      "products": total_products,
+      "orders": total_orders
     }
-  }), 200
+  except Exception:
+    return {"users": 0, "premium": 0, "products": 0, "orders": 0}
+  finally:
+    session.close()
+
+def render_fallback_dashboard_html():
+  """
+  Página HTML moderna exibida caso o build do React ainda não tenha sido
+  gerado, oferecendo um painel visual instantâneo e amigável.
+  """
+  bot_info = verify_and_identify_bot()
+  bot_name = bot_info.first_name if bot_info else "Curso Python Bot"
+  bot_user = bot_info.username if bot_info else "Curso_PythonBot"
+  is_online = bot_info is not None
+  stats = get_dashboard_stats()
+
+  html = f"""<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content OS &middot; Telegram Bot Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {{ font-family: 'Plus Jakarta Sans', sans-serif; }}
+    code, pre {{ font-family: 'JetBrains Mono', monospace; }}
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-white antialiased">
+  
+  <!-- Header -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-cyan-500/20">
+          ⚡
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
+            Content OS
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-mono">
+              Render Online
+            </span>
+          </h1>
+          <p class="text-xs text-slate-400">Telegram Bot Engine &amp; Automação 24/7</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold {'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' if is_online else 'bg-amber-500/10 text-amber-400 border border-amber-500/30'}">
+          <span class="w-2 h-2 rounded-full {'bg-emerald-400 animate-pulse' if is_online else 'bg-amber-400'}"></span>
+          {'Bot Conectado' if is_online else 'Aguardando Token'}
+        </span>
+        <a href="https://t.me/{bot_user}" target="_blank" rel="noreferrer" class="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-lg transition-colors shadow-md shadow-cyan-500/20 flex items-center gap-1.5">
+          <span>Abrir Bot</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-6">
+    
+    <!-- Hero Card -->
+    <div class="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-xl relative overflow-hidden">
+      <div class="absolute -right-10 -top-10 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+        <div class="space-y-2">
+          <div class="inline-flex items-center gap-2 text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-md border border-cyan-500/20">
+            <span>PLATAFORMA ATIVA NO RENDER</span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            {bot_name} <span class="text-cyan-400">(@{bot_user})</span>
+          </h2>
+          <p class="text-sm text-slate-300 max-w-2xl leading-relaxed">
+            Seu servidor de automação, agendador e bot do Telegram estão operando com sucesso. O sistema processa compras, entrega conteúdos e atende clientes 24 horas por dia.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <a href="https://t.me/{bot_user}?start=painel" target="_blank" rel="noreferrer" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+            <span>Iniciar Bot no Telegram</span>
+          </a>
+          <a href="/api/health" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm rounded-xl border border-slate-700 transition-colors flex items-center gap-2">
+            <span>Ver Health Check</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium block">Total de Usuários</span>
+        <span class="text-2xl font-bold text-white tracking-tight mt-1 block">{stats['users']}</span>
+        <span class="text-[11px] text-cyan-400 mt-1 block">Inscritos no CRM</span>
+      </div>
+      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium block">Membros VIP</span>
+        <span class="text-2xl font-bold text-emerald-400 tracking-tight mt-1 block">{stats['premium']}</span>
+        <span class="text-[11px] text-slate-400 mt-1 block">Acesso liberado</span>
+      </div>
+      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium block">Produtos Ativos</span>
+        <span class="text-2xl font-bold text-cyan-400 tracking-tight mt-1 block">{stats['products']}</span>
+        <span class="text-[11px] text-slate-400 mt-1 block">Catálogo PIX</span>
+      </div>
+      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium block">Pedidos Registrados</span>
+        <span class="text-2xl font-bold text-purple-400 tracking-tight mt-1 block">{stats['orders']}</span>
+        <span class="text-[11px] text-slate-400 mt-1 block">Transações salvas</span>
+      </div>
+    </div>
+
+    <!-- Endpoints da API -->
+    <div class="p-6 rounded-xl bg-slate-900/60 border border-slate-800 space-y-4">
+      <h3 class="text-base font-bold text-white flex items-center gap-2">
+        <span>Endpoints da API REST (Disponíveis)</span>
+      </h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+        <a href="/api/health" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-cyan-400 font-bold">GET /api/health</span>
+            <span class="text-[10px] text-emerald-400">200 OK</span>
+          </div>
+          <p class="text-slate-400 text-[11px]">Status de saúde do serviço e SQLite</p>
+        </a>
+        <a href="/api/bot/status" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-cyan-400 font-bold">GET /api/bot/status</span>
+            <span class="text-[10px] text-cyan-400">Telegram</span>
+          </div>
+          <p class="text-slate-400 text-[11px]">Validação e perfil do bot conectado</p>
+        </a>
+        <a href="/api/products" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-cyan-400 font-bold">GET /api/products</span>
+            <span class="text-[10px] text-purple-400">Catálogo</span>
+          </div>
+          <p class="text-slate-400 text-[11px]">Listagem de produtos e preços PIX</p>
+        </a>
+        <a href="/api/users" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-cyan-400 font-bold">GET /api/users</span>
+            <span class="text-[10px] text-amber-400">CRM</span>
+          </div>
+          <p class="text-slate-400 text-[11px]">Lista de inscritos e status VIP</p>
+        </a>
+        <a href="/api/orders" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-cyan-400 font-bold">GET /api/orders</span>
+            <span class="text-[10px] text-blue-400">Vendas</span>
+          </div>
+          <p class="text-slate-400 text-[11px]">Histórico de compras e pagamentos</p>
+        </a>
+        <a href="/ping" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-cyan-400 font-bold">GET /ping</span>
+            <span class="text-[10px] text-emerald-400">Keep-Alive</span>
+          </div>
+          <p class="text-slate-400 text-[11px]">Rota leve anti-hibernação do Render</p>
+        </a>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 bg-slate-900/40 py-4 text-center text-xs text-slate-500">
+    Content OS &copy; {datetime.utcnow().year} &middot; Hospedado no Render com Gunicorn WSGI &middot; Bot Telegram Online 24/7
+  </footer>
+</body>
+</html>"""
+  return html
+
+@app.route('/', methods=['GET'])
+def root_index():
+  """
+  Serve a interface web (Index):
+  1. Se o build completo do React (dist/index.html) existir, serve o React SPA.
+  2. Se a requisição explícita for JSON (ex: curl ou Accept: application/json), retorna status JSON.
+  3. Caso contrário, serve a página web moderna em HTML.
+  """
+  # Se o cliente solicitar JSON explicitamente:
+  if request.headers.get('Accept') == 'application/json' or request.args.get('format') == 'json':
+    return jsonify({
+      "status": "online",
+      "service": "Curso Python Bot & Content OS Engine",
+      "platform": "Render Ready",
+      "timestamp": datetime.utcnow().isoformat(),
+      "docs": {
+        "health": "/api/health",
+        "bot_status": "/api/bot/status",
+        "ping": "/ping"
+      }
+    }), 200
+
+  # 1. Se o frontend React estiver compilado na pasta dist:
+  dist_index = os.path.join(DIST_DIR, 'index.html')
+  if os.path.exists(dist_index):
+    return send_from_directory(DIST_DIR, 'index.html')
+
+  # 2. Se não houver dist compilado, renderiza o painel visual em HTML:
+  return render_fallback_dashboard_html()
+
+@app.route('/assets/<path:path>')
+def serve_static_assets(path):
+  """Serve arquivos JS, CSS e imagens da pasta dist/assets do React."""
+  assets_dir = os.path.join(DIST_DIR, 'assets')
+  if os.path.exists(os.path.join(assets_dir, path)):
+    return send_from_directory(assets_dir, path)
+  return jsonify({"error": "Asset not found"}), 404
+
+@app.route('/<path:path>')
+def catch_all_spa(path):
+  """Permite navegação e recarga direta nas rotas do frontend SPA."""
+  if path.startswith('api/') or path == 'ping':
+    return jsonify({"error": "Endpoint não encontrado"}), 404
+  file_path = os.path.join(DIST_DIR, path)
+  if os.path.exists(file_path) and os.path.isfile(file_path):
+    return send_from_directory(DIST_DIR, path)
+  dist_index = os.path.join(DIST_DIR, 'index.html')
+  if os.path.exists(dist_index):
+    return send_from_directory(DIST_DIR, 'index.html')
+  return render_fallback_dashboard_html()
 
 @app.route('/ping', methods=['GET'])
 def ping():
@@ -62,6 +299,7 @@ def healthcheck():
     "service": "Content OS Backend Engine",
     "render_service_id": os.getenv("RENDER_SERVICE_ID", "local")
   })
+
 
 @app.route('/api/bot/status', methods=['GET'])
 def get_bot_status():

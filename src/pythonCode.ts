@@ -620,7 +620,13 @@ from bot import verify_and_identify_bot, broadcast_message_to_subscribers, bot
 
 load_dotenv()
 
-app = Flask(__name__)
+# Diretório de arquivos estáticos compilados (React Vite)
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+DIST_DIR = os.path.join(CURRENT_DIR, 'dist')
+if not os.path.exists(DIST_DIR):
+  DIST_DIR = os.path.join(os.getcwd(), 'dist')
+
+app = Flask(__name__, static_folder=DIST_DIR if os.path.exists(DIST_DIR) else None)
 CORS(app)
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'content-os-secret-key-2026')
@@ -628,6 +634,35 @@ app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 init_db()
+
+@app.route('/', methods=['GET'])
+def root_index():
+  """Serve o Index / Dashboard Web (se existir build do React ou fallback HTML)"""
+  if request.headers.get('Accept') == 'application/json' or request.args.get('format') == 'json':
+    return jsonify({"status": "online", "service": "Curso Python Bot", "platform": "Render Ready"}), 200
+  dist_index = os.path.join(DIST_DIR, 'index.html')
+  if os.path.exists(dist_index):
+    return send_from_directory(DIST_DIR, 'index.html')
+  return render_fallback_dashboard_html()
+
+@app.route('/assets/<path:path>')
+def serve_static_assets(path):
+  assets_dir = os.path.join(DIST_DIR, 'assets')
+  return send_from_directory(assets_dir, path) if os.path.exists(os.path.join(assets_dir, path)) else ("Not found", 404)
+
+@app.route('/<path:path>')
+def catch_all_spa(path):
+  if path.startswith('api/') or path == 'ping':
+    return jsonify({"error": "Not found"}), 404
+  file_path = os.path.join(DIST_DIR, path)
+  if os.path.exists(file_path) and os.path.isfile(file_path):
+    return send_from_directory(DIST_DIR, path)
+  dist_index = os.path.join(DIST_DIR, 'index.html')
+  return send_from_directory(DIST_DIR, 'index.html') if os.path.exists(dist_index) else render_fallback_dashboard_html()
+
+@app.route('/ping', methods=['GET'])
+def ping():
+  return jsonify({"pong": True, "time": datetime.utcnow().isoformat()}), 200
 
 @app.route('/api/health', methods=['GET'])
 def healthcheck():
