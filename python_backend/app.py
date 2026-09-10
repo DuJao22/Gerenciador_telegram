@@ -30,8 +30,28 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 init_db()
 
 # ─────────────────────────────────────────────────────────────
-# 1. HEALTHCHECK & STATUS DO BOT TELEGRAM
+# 1. HEALTHCHECK & STATUS DO BOT TELEGRAM (RENDER READY)
 # ─────────────────────────────────────────────────────────────
+
+@app.route('/', methods=['GET'])
+def root_status():
+  """Endpoint raiz otimizado para o Health Check do Render e visualização rápida."""
+  return jsonify({
+    "status": "online",
+    "service": "Curso Python Bot & Content OS Engine",
+    "platform": "Render Ready",
+    "timestamp": datetime.utcnow().isoformat(),
+    "docs": {
+      "health": "/api/health",
+      "bot_status": "/api/bot/status",
+      "ping": "/ping"
+    }
+  }), 200
+
+@app.route('/ping', methods=['GET'])
+def ping():
+  """Endpoint leve para ping keep-alive anti-hibernação do Render."""
+  return jsonify({"pong": True, "time": datetime.utcnow().isoformat()}), 200
 
 @app.route('/api/health', methods=['GET'])
 def healthcheck():
@@ -39,7 +59,8 @@ def healthcheck():
   return jsonify({
     "status": "healthy",
     "timestamp": datetime.utcnow().isoformat(),
-    "service": "Content OS Backend Engine"
+    "service": "Content OS Backend Engine",
+    "render_service_id": os.getenv("RENDER_SERVICE_ID", "local")
   })
 
 @app.route('/api/bot/status', methods=['GET'])

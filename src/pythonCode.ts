@@ -1113,9 +1113,71 @@ DATABASE_URL="sqlite:///content_os.db"
 PORT=5000
 `
   },
+  'render.yaml': {
+    filename: 'render.yaml',
+    description: 'Blueprint oficial para publicar no Render.com com 1 clique (Auto-deploy, build e anti-sleep)',
+    language: 'yaml',
+    code: `# ==============================================================================
+# RENDER BLUEPRINT (render.yaml) - CURSO PYTHON BOT & CONTENT OS
+# ==============================================================================
+# No Render.com, clique em "New +" -> "Blueprint" e selecione este repositório!
+
+services:
+  - type: web
+    name: curso-python-bot
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: TELEGRAM_BOT_TOKEN
+        value: 8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY
+      - key: TELEGRAM_CHANNEL_ID
+        value: "@seucanalpublico"
+      - key: INSTAGRAM_URL
+        value: "https://instagram.com/seuperfil"
+      - key: SUPPORT_USERNAME
+        value: "suporte_hub"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: "sqlite:///content_os.db"
+`
+  },
+  'Dockerfile': {
+    filename: 'Dockerfile',
+    description: 'Contêiner Docker otimizado para Render, Railway, Fly.io ou VPS Linux',
+    language: 'dockerfile',
+    code: `FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    gcc \\
+    curl \\
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 5000
+
+CMD ["python", "main.py"]
+`
+  },
   'README.md': {
     filename: 'README.md',
-    description: 'Guia completo passo a passo para configurar e rodar em produção',
+    description: 'Guia completo passo a passo para configurar e rodar no Render ou VPS',
     language: 'markdown',
     code: `# 🚀 CONTENT OS - Plataforma de Venda e Distribuição de Conteúdo no Telegram
 
@@ -1123,37 +1185,41 @@ Plataforma completa em **Python + Flask + pyTelegramBotAPI + APScheduler + SQLit
 
 ---
 
+## 🌐 Como Hospedar no Render (Passo a Passo Otimizado)
+
+O projeto inclui o arquivo \`render.yaml\` pronto para deploy automático:
+
+### 1. No Render.com
+1. Acesse [render.com](https://render.com) e conecte sua conta GitHub.
+2. Clique em **New +** e selecione **Blueprint**.
+3. Selecione o repositório.
+4. O Render detectará automaticamente o arquivo \`render.yaml\`, configurando:
+   - **Build Command:** \`pip install -r requirements.txt\`
+   - **Start Command:** \`python main.py\`
+   - **Health Check Path:** \`/api/health\`
+   - **Variáveis de Ambiente:** Telegram Token e canais já mapeados.
+5. Clique em **Apply**. Seu bot estará no ar em menos de 2 minutos!
+
+### 2. Sistema Anti-Sleep Ativo
+O \`main.py\` inclui um worker keep-alive que pinga o próprio endpoint \`/ping\` a cada 10 minutos, impedindo que o plano gratuito do Render hiberne por inatividade!
+
+---
+
 ## 🛠️ Como rodar na sua máquina local
 
 ### 1. Bot Telegram Configurado
-O token do bot já está pronto e identificado:
 - **Nome do Bot:** Curso Python Bot
 - **Username:** @Curso_PythonBot
 - **Token:** \`8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY\`
 
-### 2. Clonar e Instalar Dependências
+### 2. Iniciar Tudo com 1 Comando (Orquestrador Master)
 \`\`\`bash
 cd python_backend
 python3 -m venv venv
-source venv/bin/activate  # No Windows: venv\\Scripts\\activate
+source venv/bin/activate
 pip install -r requirements.txt
-\`\`\`
-
-### 3. Configurar as Variáveis de Ambiente
-Crie um arquivo \`.env\` baseado no \`.env.example\`:
-\`\`\`env
-TELEGRAM_BOT_TOKEN="8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY"
-TELEGRAM_CHANNEL_ID="@seucanalpublico"
-INSTAGRAM_URL="https://instagram.com/seuperfil"
-SUPPORT_USERNAME="suporte_hub"
-PORT=5000
-\`\`\`
-
-### 4. Iniciar Tudo com 1 Comando (Orquestrador Master)
-\`\`\`bash
 python main.py
 \`\`\`
-O script valida o token, identifica o nome do bot, inicia o polling com auto-restart, ativa o agendador e o servidor Flask.
 `
   }
 };

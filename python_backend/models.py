@@ -8,8 +8,21 @@ from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, DateTime, Text, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-DB_PATH = os.getenv("DATABASE_URL", "sqlite:///content_os.db")
-engine = create_engine(DB_PATH, connect_args={"check_same_thread": False})
+# Configuração da URL do banco de dados (Otimizado para Render e SQLite/PostgreSQL)
+db_path = os.getenv("DATABASE_URL", "sqlite:///content_os.db")
+
+# No Render, conexões PostgreSQL antigas usam postgres://, mas SQLAlchemy 2.0 requer postgresql://
+if db_path.startswith("postgres://"):
+  db_path = db_path.replace("postgres://", "postgresql://", 1)
+
+# Se um Persistent Disk estiver montado no Render em /data, usa-o automaticamente para persistência
+if db_path == "sqlite:///content_os.db" and os.path.exists("/data") and os.path.isdir("/data"):
+  db_path = "sqlite:////data/content_os.db"
+
+# connect_args={"check_same_thread": False} só pode ser passado para SQLite
+connect_args = {"check_same_thread": False} if db_path.startswith("sqlite") else {}
+
+engine = create_engine(db_path, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

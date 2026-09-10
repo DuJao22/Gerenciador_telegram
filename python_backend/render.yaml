@@ -1,0 +1,41 @@
+# ==============================================================================
+# RENDER BLUEPRINT (render.yaml) - CURSO PYTHON BOT & CONTENT OS
+# ==============================================================================
+# Este arquivo permite publicar este sistema no Render com 1 ÚNICO CLIQUE:
+# 1. No Render.com, clique em "New +" -> "Blueprint"
+# 2. Conecte este repositório
+# 3. O Render configura automaticamente o build, start e variáveis de ambiente!
+# ==============================================================================
+
+services:
+  # Serviço Web Principal (Flask API + Telegram Bot Polling 24/7 + Scheduler)
+  - type: web
+    name: curso-python-bot
+    runtime: python
+    region: oregon # ou frankfurt, ohio, virginia, singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: TELEGRAM_BOT_TOKEN
+        value: 8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY
+      - key: TELEGRAM_CHANNEL_ID
+        value: "@seucanalpublico"
+      - key: INSTAGRAM_URL
+        value: "https://instagram.com/seuperfil"
+      - key: SUPPORT_USERNAME
+        value: "suporte_hub"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: "sqlite:///content_os.db"
+
+    # Se você quiser persistência total de arquivos no Render mesmo ao reiniciar (Plano Starter):
+    # disk:
+    #   name: content-os-data
+    #   mountPath: /data
+    #   sizeGB: 1

@@ -81,6 +81,47 @@ O `main.py` irá:
 
 ---
 
+## 🌐 Como Hospedar no Render (Passo a Passo Otimizado)
+
+O sistema já está 100% otimizado para o **Render** com:
+- Detecção automática de porta (`PORT`)
+- Endpoint de Health Check (`/api/health` e `/ping`)
+- **Sistema Anti-Sleep / Keep-Alive**: Envia pings automáticos para si mesmo a cada 10 minutos para impedir que o plano Free do Render hiberne após 15 minutos de inatividade!
+- Blueprint `render.yaml` para configuração com 1 clique.
+
+### Opção A: Deploy Automático via Blueprint (Recomendado)
+1. Crie uma conta gratuita em [render.com](https://render.com).
+2. Conecte sua conta do GitHub ou GitLab.
+3. No painel do Render, clique no botão azul **"New +"** no topo e selecione **"Blueprint"**.
+4. Selecione o repositório deste projeto.
+5. O Render lerá o arquivo `render.yaml` e pré-configurará tudo:
+   - **Runtime**: Python 3.11
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python main.py`
+   - **Health Check**: `/api/health`
+6. Confirme e clique em **"Apply"**. Pronto! Seu bot estará online 24/7!
+
+### Opção B: Deploy Manual como Web Service
+1. No Render, clique em **"New +"** -> **"Web Service"**.
+2. Conecte o repositório.
+3. Preencha os campos:
+   - **Name**: `curso-python-bot` (ou o nome que desejar)
+   - **Root Directory**: `python_backend` (se estiver numa subpasta)
+   - **Environment**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python main.py`
+   - **Plan**: `Free`
+4. Na aba **Environment Variables**, adicione:
+   - `TELEGRAM_BOT_TOKEN`: `8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY`
+   - `TELEGRAM_CHANNEL_ID`: `@seucanalpublico`
+   - `INSTAGRAM_URL`: `https://instagram.com/seuperfil`
+   - `SUPPORT_USERNAME`: `suporte_hub`
+   - `PYTHON_VERSION`: `3.11.8`
+5. Clique em **"Create Web Service"**.
+6. O Render fornecerá uma URL pública (ex: `https://curso-python-bot.onrender.com`). O bot identificará essa URL e manterá a instância sempre acordada!
+
+---
+
 ## 🛡️ Produção em VPS (Supervisord / Systemd)
 
 Para servidores Linux (Ubuntu/Debian), utilize o arquivo `supervisord.conf`:

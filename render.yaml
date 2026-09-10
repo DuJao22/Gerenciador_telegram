@@ -1,0 +1,30 @@
+# ==============================================================================
+# RENDER BLUEPRINT (render.yaml) - CURSO PYTHON BOT & CONTENT OS
+# ==============================================================================
+
+services:
+  - type: web
+    name: curso-python-bot
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: python_backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: TELEGRAM_BOT_TOKEN
+        value: 8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY
+      - key: TELEGRAM_CHANNEL_ID
+        value: "@seucanalpublico"
+      - key: INSTAGRAM_URL
+        value: "https://instagram.com/seuperfil"
+      - key: SUPPORT_USERNAME
+        value: "suporte_hub"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: "sqlite:///content_os.db"

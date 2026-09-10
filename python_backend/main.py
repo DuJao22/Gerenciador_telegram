@@ -44,8 +44,36 @@ def start_scheduler_worker():
   except Exception as e:
     print(f"❌ [MAIN SUPERVISOR - SCHEDULER ERRO]: {e}")
 
+def start_render_keep_alive():
+  """
+  Worker de Anti-Hibernação para o Render (Plano Free).
+  Envia um ping HTTP a cada 10 minutos para a própria URL pública do Render,
+  evitando que a instância entre em modo de suspensão por inatividade.
+  """
+  render_url = os.getenv('RENDER_EXTERNAL_URL') or os.getenv('KEEP_ALIVE_URL')
+  if not render_url:
+    # Se não houver URL pública configurada, não precisa pingar
+    return
+
+  print(f"🏓 [RENDER ANTI-SLEEP] Monitor ativo para URL: {render_url} (ping a cada 10 min)")
+  # Aguarda 30 segundos para o Flask terminar de subir antes do primeiro ping
+  time.sleep(30)
+  while True:
+    try:
+      ping_target = f"{render_url.rstrip('/')}/ping"
+      resp = requests.get(ping_target, timeout=10)
+      if resp.status_code == 200:
+        print(f"🏓 [RENDER ANTI-SLEEP] Ping enviado com sucesso ({datetime.utcnow().strftime('%H:%M:%S')}) - Instância Ativa!")
+      else:
+        print(f"⚠️ [RENDER ANTI-SLEEP] Resposta do ping: {resp.status_code}")
+    except Exception as err:
+      print(f"⚠️ [RENDER ANTI-SLEEP] Falha ao enviar ping: {err}")
+    
+    # Aguarda 10 minutos (600 segundos) - Render suspende em 15 minutos
+    time.sleep(600)
+
 def run_flask_server():
-  """Inicia o servidor Flask na porta especificada."""
+  """Inicia o servidor Flask na porta especificada (Render usa PORT=10000 por padrão)."""
   port = int(os.getenv('PORT', 5000))
   print(f"🌐 [MAIN SUPERVISOR] Servidor Flask iniciando em http://0.0.0.0:{port}...")
   # Usamos debug=False para evitar duplo fork de subprocessos do Flask
@@ -55,7 +83,7 @@ def main():
   print_banner()
 
   # 1. Inicializa o banco de dados e sementes iniciais
-  print("📦 [ETAPA 1/3] Verificando banco de dados SQLite...")
+  print("📦 [ETAPA 1/3] Verificando banco de dados...")
   init_db()
 
   # 2. Conecta ao Telegram, valida token e identifica nome do bot
@@ -77,7 +105,11 @@ def main():
   sched_thread.start()
   print("⏰ [SUPERVISOR] Thread do Agendador ativa!")
 
-  # 5. Inicia o Watchdog Supervisor em Background
+  # 5. Inicia o Worker Anti-Sleep para o Render (caso RENDER_EXTERNAL_URL esteja presente)
+  keep_alive_thread = threading.Thread(target=start_render_keep_alive, daemon=True, name="RenderKeepAliveThread")
+  keep_alive_thread.start()
+
+  # 6. Inicia o Watchdog Supervisor em Background
   def watchdog():
     nonlocal bot_thread, sched_thread
     while True:
@@ -98,7 +130,7 @@ def main():
   watchdog_thread.start()
   print("🛡️ [SUPERVISOR] Watchdog de proteção 24/7 iniciado!")
 
-  # 6. Inicia o Flask na thread principal (mantém o processo vivo)
+  # 7. Inicia o Flask na thread principal (mantém o processo vivo)
   run_flask_server()
 
 if __name__ == "__main__":

@@ -154,6 +154,57 @@ export const PythonCodeViewer: React.FC = () => {
         </div>
       </div>
 
+      {/* Render Hosting Quick Guide Card */}
+      <div className="bg-gradient-to-r from-cyan-950/40 via-slate-900 to-blue-950/40 border border-cyan-500/30 rounded-xl p-5 shadow-lg space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-xs">
+              ⚡
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-white flex items-center gap-2">
+                <span>Hospedagem no Render (100% Otimizado)</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono">
+                  Anti-Sleep Incluso
+                </span>
+              </h4>
+              <p className="text-xs text-slate-400">
+                O arquivo <code className="text-cyan-300">render.yaml</code> já está pronto. No Render.com, use <strong>New + &gt; Blueprint</strong>.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setSelectedFile('render.yaml')}
+            className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+          >
+            <FileCode className="w-3.5 h-3.5" />
+            <span>Ver render.yaml</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-800">
+            <span className="font-semibold text-white block mb-1">1. Conecte o GitHub</span>
+            <span className="text-slate-400 text-[11px] leading-relaxed">
+              Crie o repositório com os arquivos do projeto e conecte sua conta no Render.
+            </span>
+          </div>
+          <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-800">
+            <span className="font-semibold text-white block mb-1">2. New &gt; Blueprint</span>
+            <span className="text-slate-400 text-[11px] leading-relaxed">
+              O Render lerá o <code className="text-cyan-400">render.yaml</code> e configurará tudo sozinho com o token do seu bot.
+            </span>
+          </div>
+          <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-800">
+            <span className="font-semibold text-emerald-400 block mb-1">3. Bot 24/7 Ativo</span>
+            <span className="text-slate-400 text-[11px] leading-relaxed">
+              O sistema anti-sleep envia pings a cada 10 min, mantendo seu bot acordado sem desativar.
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Terminal Quickstart Card */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-3">
