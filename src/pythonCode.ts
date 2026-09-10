@@ -1266,9 +1266,9 @@ CMD ["python", "main.py"]
     filename: 'README.md',
     description: 'Guia completo passo a passo para configurar e rodar no Render ou VPS',
     language: 'markdown',
-    code: `# 🚀 CONTENT OS - Plataforma de Venda e Distribuição de Conteúdo no Telegram
+    code: `# 🚀 LYONBOTS - Plataforma de Venda e Automação no Telegram & Web App (PWA)
 
-Plataforma completa em **Python + Flask + pyTelegramBotAPI + APScheduler + SQLite** com **Supervisão 24/7 (Auto-Recovery)**.
+Plataforma inteligente e instalável em **Python + Flask + React PWA + pyTelegramBotAPI + APScheduler + SQLite** com **Supervisão 24/7 (Auto-Recovery)**.
 
 ---
 

@@ -1,6 +1,6 @@
 {
-  "name": "Content OS - Telegram Bot & Web Platform",
-  "description": "Plataforma completa de distribuição, agendamento e venda de conteúdo no Telegram com bot interativo e painel administrativo.",
+  "name": "LyonBots - Telegram Bot & Web Platform",
+  "description": "Plataforma inteligente LyonBots de automação, agendamento e venda de conteúdo no Telegram com bot integrado 24/7.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

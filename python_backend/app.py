@@ -8,6 +8,7 @@ Servidor web de alta performance que suporta todo o ecossistema:
 """
 
 import os
+import json
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, render_template_string
 from flask_cors import CORS
@@ -21,9 +22,17 @@ load_dotenv()
 
 # Determina o diretório de arquivos estáticos compilados (React Vite)
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+possible_dist_dirs = [
+  os.path.join(CURRENT_DIR, 'dist'),
+  os.path.join(os.getcwd(), 'python_backend', 'dist'),
+  os.path.join(os.getcwd(), 'dist'),
+  os.path.join(CURRENT_DIR, '..', 'dist'),
+]
 DIST_DIR = os.path.join(CURRENT_DIR, 'dist')
-if not os.path.exists(DIST_DIR):
-  DIST_DIR = os.path.join(os.getcwd(), 'dist')
+for candidate in possible_dist_dirs:
+  if os.path.exists(candidate) and os.path.exists(os.path.join(candidate, 'index.html')):
+    DIST_DIR = candidate
+    break
 
 app = Flask(__name__, static_folder=DIST_DIR if os.path.exists(DIST_DIR) else None)
 CORS(app) # Permite que o frontend React ou outros clientes consumam a API sem bloqueio
@@ -38,6 +47,38 @@ init_db()
 # ─────────────────────────────────────────────────────────────
 # 1. PÁGINA INICIAL (INDEX), DASHBOARD & ASSETS
 # ─────────────────────────────────────────────────────────────
+
+BOT_SETTINGS_FILE = os.path.join(CURRENT_DIR, 'bot_settings.json')
+
+def load_bot_settings():
+  default_settings = {
+    "telegramToken": os.getenv("TELEGRAM_BOT_TOKEN", "8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY"),
+    "botName": "Curso Python Bot",
+    "botUsername": "Curso_PythonBot",
+    "channelId": os.getenv("TELEGRAM_CHANNEL_ID", "@seucanalpublico"),
+    "welcomeMessage": "👋 Olá! Bem-vindo ao Bot Oficial!\nAcesse nossos conteúdos exclusivos, aulas práticas e planos VIP.",
+    "vipDescription": "⭐ Acesso VIP ilimitado a todos os módulos, downloads e suporte prioritário por apenas R$ 47,00/mês.",
+    "vipPrice": 47.00,
+    "pixKey": "pix@lyonbots.com",
+    "supportUser": "suporte_lyonbots"
+  }
+  if os.path.exists(BOT_SETTINGS_FILE):
+    try:
+      with open(BOT_SETTINGS_FILE, 'r', encoding='utf-8') as f:
+        default_settings.update(json.load(f))
+    except Exception:
+      pass
+  return default_settings
+
+def save_bot_settings(data):
+  settings = load_bot_settings()
+  settings.update(data)
+  try:
+    with open(BOT_SETTINGS_FILE, 'w', encoding='utf-8') as f:
+      json.dump(settings, f, indent=2, ensure_ascii=False)
+  except Exception as e:
+    print(f"Erro ao salvar {BOT_SETTINGS_FILE}: {e}")
+  return settings
 
 def get_dashboard_stats():
   """Coleta métricas rápidas do banco de dados para o index."""
@@ -60,12 +101,14 @@ def get_dashboard_stats():
 
 def render_fallback_dashboard_html():
   """
-  Página HTML moderna exibida caso o build do React ainda não tenha sido
-  gerado, oferecendo um painel visual instantâneo e amigável.
+  Painel de Controle completo e interativo LyonBots:
+  Permite gerenciar configurações do bot, token, conteúdos e menus,
+  produtos PIX, simulador e disparos em massa diretamente pelo index.
   """
   bot_info = verify_and_identify_bot()
-  bot_name = bot_info.first_name if bot_info else "Curso Python Bot"
-  bot_user = bot_info.username if bot_info else "Curso_PythonBot"
+  settings = load_bot_settings()
+  bot_name = bot_info.first_name if bot_info else settings.get("botName", "LyonBots")
+  bot_user = bot_info.username if bot_info else settings.get("botUsername", "LyonBots_Bot")
   is_online = bot_info is not None
   stats = get_dashboard_stats()
 
@@ -74,7 +117,20 @@ def render_fallback_dashboard_html():
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Content OS &middot; Telegram Bot Dashboard</title>
+  <title>LyonBots &middot; Telegram Bot &amp; Web Platform</title>
+  <meta name="description" content="Plataforma de automação, agendamento e venda de conteúdo no Telegram com bot integrado 24/7." />
+  
+  <meta property="og:site_name" content="LyonBots" />
+  <meta property="og:title" content="LyonBots - Robô Inteligente de Automação no Telegram" />
+  <meta property="og:description" content="Gerencie seu bot de Telegram, agende conteúdos, receba pagamentos via PIX e monitore métricas em tempo real com a LyonBots." />
+  <meta property="og:image" content="/og-banner.jpg" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="/og-banner.jpg" />
+  <link rel="icon" type="image/jpeg" href="/lyonbots-logo.jpg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#020617">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -82,34 +138,61 @@ def render_fallback_dashboard_html():
   <style>
     body {{ font-family: 'Plus Jakarta Sans', sans-serif; }}
     code, pre {{ font-family: 'JetBrains Mono', monospace; }}
+    .tab-content {{ display: none; }}
+    .tab-content.active {{ display: block; }}
+    .nav-btn.active {{
+      background-color: rgb(6 182 212 / 0.15);
+      color: #38bdf8;
+      border-color: rgb(56 189 248 / 0.4);
+    }}
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-white antialiased">
   
   <!-- Header -->
-  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between">
+  <header class="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-cyan-500/20">
-          ⚡
+        <div class="relative">
+          <img src="/lyonbots-logo.jpg" alt="LyonBots Logo" class="w-10 h-10 rounded-xl object-cover border border-cyan-500/40 shadow-lg shadow-cyan-500/20" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100'" />
+          <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border border-slate-950 rounded-full animate-pulse"></span>
         </div>
         <div>
           <h1 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
-            Content OS
+            LyonBots
             <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-mono">
-              Render Online
+              Painel de Controle
             </span>
           </h1>
           <p class="text-xs text-slate-400">Telegram Bot Engine &amp; Automação 24/7</p>
         </div>
       </div>
 
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center gap-1.5 overflow-x-auto py-1 px-1.5 bg-slate-900/90 rounded-xl border border-slate-800">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white border border-transparent transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span>📊 Dashboard</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white border border-transparent transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span>⚙️ Configurações</span>
+        </button>
+        <button onclick="switchTab('botcontent')" id="nav-botcontent" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white border border-transparent transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span>🤖 Conteúdo do Bot</span>
+        </button>
+        <button onclick="switchTab('products')" id="nav-products" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white border border-transparent transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span>💰 Produtos &amp; PIX</span>
+        </button>
+        <button onclick="switchTab('simulator')" id="nav-simulator" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white border border-transparent transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span>📱 Simulador</span>
+        </button>
+      </nav>
+
       <div class="flex items-center gap-2">
         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold {'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' if is_online else 'bg-amber-500/10 text-amber-400 border border-amber-500/30'}">
           <span class="w-2 h-2 rounded-full {'bg-emerald-400 animate-pulse' if is_online else 'bg-amber-400'}"></span>
-          {'Bot Conectado' if is_online else 'Aguardando Token'}
+          {'Bot Online' if is_online else 'Aguardando Token'}
         </span>
-        <a href="https://t.me/{bot_user}" target="_blank" rel="noreferrer" class="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-lg transition-colors shadow-md shadow-cyan-500/20 flex items-center gap-1.5">
+        <a href="https://t.me/{bot_user}" target="_blank" rel="noreferrer" class="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-lg transition-colors shadow-md shadow-cyan-500/20 flex items-center gap-1.5 whitespace-nowrap">
           <span>Abrir Bot</span>
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
         </a>
@@ -117,119 +200,631 @@ def render_fallback_dashboard_html():
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-6">
-    
-    <!-- Hero Card -->
-    <div class="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-xl relative overflow-hidden">
-      <div class="absolute -right-10 -top-10 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-        <div class="space-y-2">
-          <div class="inline-flex items-center gap-2 text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-md border border-cyan-500/20">
-            <span>PLATAFORMA ATIVA NO RENDER</span>
+  <!-- Main Content Area -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full space-y-6">
+
+    <!-- TAB 1: DASHBOARD -->
+    <div id="tab-dashboard" class="tab-content active space-y-6">
+      <!-- Hero Card -->
+      <div class="p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-xl relative overflow-hidden">
+        <div class="absolute -right-10 -top-10 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div class="space-y-2">
+            <div class="inline-flex items-center gap-2 text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-md border border-cyan-500/20">
+              <span>PLATAFORMA ATIVA NO RENDER</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              {bot_name} <span class="text-cyan-400">(@{bot_user})</span>
+            </h2>
+            <p class="text-sm text-slate-300 max-w-2xl leading-relaxed">
+              Painel de controle com acesso instantâneo às configurações, alteração de token, edição de conteúdos do robô e produtos PIX.
+            </p>
           </div>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {bot_name} <span class="text-cyan-400">(@{bot_user})</span>
-          </h2>
-          <p class="text-sm text-slate-300 max-w-2xl leading-relaxed">
-            Seu servidor de automação, agendador e bot do Telegram estão operando com sucesso. O sistema processa compras, entrega conteúdos e atende clientes 24 horas por dia.
+
+          <div class="flex flex-wrap gap-3">
+            <button onclick="switchTab('settings')" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center gap-2">
+              <span>⚙️ Configurar Bot</span>
+            </button>
+            <button onclick="switchTab('simulator')" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm rounded-xl border border-slate-700 transition-colors flex items-center gap-2">
+              <span>📱 Testar no Simulador</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Cards (Similar ao app.news) -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Atalhos de Acesso Rápido</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div onclick="switchTab('settings')" class="p-4 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/40 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-2xl">⚙️</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400">Ajustar</span>
+            </div>
+            <h4 class="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors">Chave &amp; Token do Bot</h4>
+            <p class="text-xs text-slate-400 mt-1">Altere o token da API do Telegram e valide a conexão online.</p>
+          </div>
+
+          <div onclick="switchTab('botcontent')" class="p-4 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-blue-500/40 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-2xl">🤖</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Editar</span>
+            </div>
+            <h4 class="font-bold text-white text-sm group-hover:text-blue-300 transition-colors">Conteúdo &amp; Menus</h4>
+            <p class="text-xs text-slate-400 mt-1">Mensagem de boas-vindas /start, plano VIP e botões de comando.</p>
+          </div>
+
+          <div onclick="switchTab('products')" class="p-4 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-2xl">💰</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Gerenciar</span>
+            </div>
+            <h4 class="font-bold text-white text-sm group-hover:text-emerald-300 transition-colors">Produtos &amp; Vendas PIX</h4>
+            <p class="text-xs text-slate-400 mt-1">Cadastre cursos, packs e produtos digitais com pagamento via PIX.</p>
+          </div>
+
+          <div onclick="switchTab('simulator')" class="p-4 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 transition-all cursor-pointer group">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-2xl">📱</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Interativo</span>
+            </div>
+            <h4 class="font-bold text-white text-sm group-hover:text-purple-300 transition-colors">Simulador Telegram</h4>
+            <p class="text-xs text-slate-400 mt-1">Interaja em tempo real com o robô simulando a experiência do cliente.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium block">Total de Usuários</span>
+          <span class="text-2xl font-bold text-white tracking-tight mt-1 block">{stats['users']}</span>
+          <span class="text-[11px] text-cyan-400 mt-1 block">Inscritos no CRM</span>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium block">Membros VIP</span>
+          <span class="text-2xl font-bold text-emerald-400 tracking-tight mt-1 block">{stats['premium']}</span>
+          <span class="text-[11px] text-slate-400 mt-1 block">Acesso liberado</span>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium block">Produtos Ativos</span>
+          <span class="text-2xl font-bold text-cyan-400 tracking-tight mt-1 block">{stats['products']}</span>
+          <span class="text-[11px] text-slate-400 mt-1 block">Catálogo PIX</span>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+          <span class="text-xs text-slate-400 font-medium block">Pedidos Registrados</span>
+          <span class="text-2xl font-bold text-purple-400 tracking-tight mt-1 block">{stats['orders']}</span>
+          <span class="text-[11px] text-slate-400 mt-1 block">Transações salvas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: CONFIGURAÇÕES & CHAVE DO BOT -->
+    <div id="tab-settings" class="tab-content space-y-6">
+      <div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-6">
+        <div>
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>⚙️ Configuração da Chave &amp; Token do Bot</span>
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">
+            Conecte seu bot criado no @BotFather. Teste a conexão antes de salvar para garantir que as credenciais estão corretas.
           </p>
         </div>
 
-        <div class="flex flex-wrap gap-3">
-          <a href="https://t.me/{bot_user}?start=painel" target="_blank" rel="noreferrer" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
-            <span>Iniciar Bot no Telegram</span>
-          </a>
-          <a href="/api/health" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm rounded-xl border border-slate-700 transition-colors flex items-center gap-2">
-            <span>Ver Health Check</span>
-          </a>
+        <form id="form-bot-settings" class="space-y-4" onsubmit="event.preventDefault(); saveBotSettings();">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Telegram Bot Token (HTTP API):</label>
+            <div class="flex gap-2">
+              <input type="text" id="cfg-token" value="{settings.get('telegramToken', '')}" placeholder="8894323284:AAHyfUMZwE1m5eM1JXmdhkv_oZH1E9yEixY" class="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-cyan-300 font-mono focus:outline-none focus:border-cyan-500" />
+              <button type="button" onclick="testBotToken()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors whitespace-nowrap">
+                🧪 Testar Conexão
+              </button>
+            </div>
+            <div id="token-test-result" class="mt-2 text-xs font-medium hidden"></div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Nome do Bot:</label>
+              <input type="text" id="cfg-botname" value="{settings.get('botName', 'Curso Python Bot')}" class="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Username do Bot (@):</label>
+              <input type="text" id="cfg-username" value="{settings.get('botUsername', 'Curso_PythonBot')}" class="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Canal Oficial (@seucanal):</label>
+              <input type="text" id="cfg-channel" value="{settings.get('channelId', '@seucanalpublico')}" class="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Chave PIX para Pagamentos:</label>
+              <input type="text" id="cfg-pix" value="{settings.get('pixKey', 'pix@lyonbots.com')}" class="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500" />
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+            <span id="save-status-msg" class="text-xs text-slate-400"></span>
+            <button type="submit" class="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-cyan-500/20">
+              💾 Salvar Configurações
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB 3: CONTEÚDO DO BOT & MENUS -->
+    <div id="tab-botcontent" class="tab-content space-y-6">
+      <div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-6">
+        <div>
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>🤖 Editar Mensagens &amp; Conteúdos do Bot</span>
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">
+            Personalize a resposta de boas-vindas do comando /start, descrição do plano VIP e links de suporte.
+          </p>
+        </div>
+
+        <form id="form-bot-content" class="space-y-5" onsubmit="event.preventDefault(); saveBotContent();">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-semibold text-slate-300 uppercase">Mensagem de Boas-Vindas (/start):</label>
+              <span class="text-[11px] text-cyan-400">Use {'{nome}'} para citar o usuário</span>
+            </div>
+            <textarea id="cnt-welcome" rows="4" class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-100 font-sans focus:outline-none focus:border-cyan-500">{settings.get('welcomeMessage', '')}</textarea>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-semibold text-slate-300 uppercase">Apresentação do Plano VIP (/vip):</label>
+            </div>
+            <textarea id="cnt-vipdesc" rows="3" class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-100 font-sans focus:outline-none focus:border-cyan-500">{settings.get('vipDescription', '')}</textarea>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Valor Mensalidade VIP (R$):</label>
+              <input type="number" step="0.01" id="cnt-vipprice" value="{settings.get('vipPrice', 47.00)}" class="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Usuário de Suporte no Telegram:</label>
+              <input type="text" id="cnt-support" value="{settings.get('supportUser', 'suporte_lyonbots')}" class="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500" />
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+            <span id="content-status-msg" class="text-xs text-slate-400"></span>
+            <button type="submit" class="px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-500/20">
+              💾 Salvar Conteúdos do Bot
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB 4: PRODUTOS & VENDAS PIX -->
+    <div id="tab-products" class="tab-content space-y-6">
+      <div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+              <span>💰 Catálogo de Produtos &amp; Vendas PIX</span>
+            </h3>
+            <p class="text-sm text-slate-400 mt-1">
+              Produtos exibidos pelo bot e disponibilizados para pagamento direto via PIX.
+            </p>
+          </div>
+          <button onclick="document.getElementById('modal-new-product').classList.remove('hidden')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 self-start">
+            <span>+ Novo Produto</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="text-xs uppercase bg-slate-950 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="px-4 py-3">Produto</th>
+                <th class="px-4 py-3">Preço</th>
+                <th class="px-4 py-3">Categoria</th>
+                <th class="px-4 py-3">VIP</th>
+                <th class="px-4 py-3">Checkout</th>
+              </tr>
+            </thead>
+            <tbody id="products-table-body" class="divide-y divide-slate-800/60">
+              <tr>
+                <td colspan="5" class="px-4 py-6 text-center text-slate-500 text-xs">Carregando catálogo...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-        <span class="text-xs text-slate-400 font-medium block">Total de Usuários</span>
-        <span class="text-2xl font-bold text-white tracking-tight mt-1 block">{stats['users']}</span>
-        <span class="text-[11px] text-cyan-400 mt-1 block">Inscritos no CRM</span>
-      </div>
-      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-        <span class="text-xs text-slate-400 font-medium block">Membros VIP</span>
-        <span class="text-2xl font-bold text-emerald-400 tracking-tight mt-1 block">{stats['premium']}</span>
-        <span class="text-[11px] text-slate-400 mt-1 block">Acesso liberado</span>
-      </div>
-      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-        <span class="text-xs text-slate-400 font-medium block">Produtos Ativos</span>
-        <span class="text-2xl font-bold text-cyan-400 tracking-tight mt-1 block">{stats['products']}</span>
-        <span class="text-[11px] text-slate-400 mt-1 block">Catálogo PIX</span>
-      </div>
-      <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-        <span class="text-xs text-slate-400 font-medium block">Pedidos Registrados</span>
-        <span class="text-2xl font-bold text-purple-400 tracking-tight mt-1 block">{stats['orders']}</span>
-        <span class="text-[11px] text-slate-400 mt-1 block">Transações salvas</span>
-      </div>
-    </div>
+    <!-- TAB 5: SIMULADOR TELEGRAM -->
+    <div id="tab-simulator" class="tab-content space-y-6">
+      <div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4">
+        <div>
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>📱 Simulador do Bot Telegram</span>
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">
+            Teste os comandos, menus interativos e respostas automáticas exatamente como o seu cliente verá.
+          </p>
+        </div>
 
-    <!-- Endpoints da API -->
-    <div class="p-6 rounded-xl bg-slate-900/60 border border-slate-800 space-y-4">
-      <h3 class="text-base font-bold text-white flex items-center gap-2">
-        <span>Endpoints da API REST (Disponíveis)</span>
-      </h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-        <a href="/api/health" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-mono text-cyan-400 font-bold">GET /api/health</span>
-            <span class="text-[10px] text-emerald-400">200 OK</span>
+        <!-- Chat Container -->
+        <div class="max-w-xl mx-auto rounded-2xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden flex flex-col h-[520px]">
+          <!-- Chat Header -->
+          <div class="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-base">
+              🤖
+            </div>
+            <div class="flex-1">
+              <h4 class="text-sm font-bold text-white" id="sim-bot-name">{bot_name}</h4>
+              <p class="text-[11px] text-emerald-400 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                online &middot; bot
+              </p>
+            </div>
+            <button onclick="clearSimulatorChat()" class="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded bg-slate-800">
+              Limpar
+            </button>
           </div>
-          <p class="text-slate-400 text-[11px]">Status de saúde do serviço e SQLite</p>
-        </a>
-        <a href="/api/bot/status" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-mono text-cyan-400 font-bold">GET /api/bot/status</span>
-            <span class="text-[10px] text-cyan-400">Telegram</span>
+
+          <!-- Chat Messages Scroll Area -->
+          <div id="sim-messages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
+            <div class="text-center my-2">
+              <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-slate-400">
+                Hoje &middot; Início da conversa
+              </span>
+            </div>
+
+            <!-- Bot Message -->
+            <div class="flex flex-col items-start max-w-[85%]">
+              <div class="p-3 rounded-2xl rounded-tl-none bg-slate-900 border border-slate-800 text-xs text-slate-200 space-y-2 shadow-md">
+                <p id="sim-msg-welcome" class="whitespace-pre-line">{settings.get('welcomeMessage', 'Olá! Bem-vindo ao Bot Oficial!')}</p>
+                <div class="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-800">
+                  <button onclick="sendSimUserCommand('/vip')" class="px-2.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-semibold text-[11px] rounded-lg border border-cyan-500/30 text-center transition-colors">
+                    ⭐ Assinar VIP
+                  </button>
+                  <button onclick="sendSimUserCommand('/produtos')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-[11px] rounded-lg text-center transition-colors">
+                    💰 Catálogo PIX
+                  </button>
+                  <button onclick="sendSimUserCommand('/conteudos')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-[11px] rounded-lg text-center transition-colors">
+                    📚 Conteúdos
+                  </button>
+                  <button onclick="sendSimUserCommand('/suporte')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-[11px] rounded-lg text-center transition-colors">
+                    📞 Suporte
+                  </button>
+                </div>
+              </div>
+              <span class="text-[9px] text-slate-500 mt-1 ml-1">Agora</span>
+            </div>
           </div>
-          <p class="text-slate-400 text-[11px]">Validação e perfil do bot conectado</p>
-        </a>
-        <a href="/api/products" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-mono text-cyan-400 font-bold">GET /api/products</span>
-            <span class="text-[10px] text-purple-400">Catálogo</span>
+
+          <!-- Quick Action Buttons -->
+          <div class="px-3 py-1.5 bg-slate-900/80 border-t border-slate-800/80 flex gap-2 overflow-x-auto text-[11px]">
+            <button onclick="sendSimUserCommand('/start')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 font-mono whitespace-nowrap">/start</button>
+            <button onclick="sendSimUserCommand('/vip')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-mono whitespace-nowrap">/vip</button>
+            <button onclick="sendSimUserCommand('/produtos')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-purple-400 font-mono whitespace-nowrap">/produtos</button>
+            <button onclick="sendSimUserCommand('/ajuda')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono whitespace-nowrap">/ajuda</button>
           </div>
-          <p class="text-slate-400 text-[11px]">Listagem de produtos e preços PIX</p>
-        </a>
-        <a href="/api/users" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-mono text-cyan-400 font-bold">GET /api/users</span>
-            <span class="text-[10px] text-amber-400">CRM</span>
-          </div>
-          <p class="text-slate-400 text-[11px]">Lista de inscritos e status VIP</p>
-        </a>
-        <a href="/api/orders" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-mono text-cyan-400 font-bold">GET /api/orders</span>
-            <span class="text-[10px] text-blue-400">Vendas</span>
-          </div>
-          <p class="text-slate-400 text-[11px]">Histórico de compras e pagamentos</p>
-        </a>
-        <a href="/ping" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors block">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-mono text-cyan-400 font-bold">GET /ping</span>
-            <span class="text-[10px] text-emerald-400">Keep-Alive</span>
-          </div>
-          <p class="text-slate-400 text-[11px]">Rota leve anti-hibernação do Render</p>
-        </a>
+
+          <!-- Input Area -->
+          <form onsubmit="event.preventDefault(); handleSimSubmit();" class="p-3 bg-slate-900 border-t border-slate-800 flex gap-2">
+            <input type="text" id="sim-input" placeholder="Digite uma mensagem ou comando..." class="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500" />
+            <button type="submit" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl transition-colors">
+              Enviar
+            </button>
+          </form>
+        </div>
       </div>
     </div>
 
   </main>
 
+  <!-- MODAL: NOVO PRODUTO -->
+  <div id="modal-new-product" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h4 class="text-base font-bold text-white">Cadastrar Novo Produto PIX</h4>
+        <button onclick="document.getElementById('modal-new-product').classList.add('hidden')" class="text-slate-400 hover:text-white text-lg">&times;</button>
+      </div>
+      <form onsubmit="event.preventDefault(); handleCreateProduct();" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Título do Produto:</label>
+          <input type="text" id="prod-title" required placeholder="Ex: Curso Completo de Automação Telegram" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Preço (R$):</label>
+            <input type="number" step="0.01" id="prod-price" required placeholder="47.00" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Categoria:</label>
+            <select id="prod-cat" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500">
+              <option value="Cursos">Cursos</option>
+              <option value="Packs">Packs</option>
+              <option value="Assinaturas">Assinaturas</option>
+              <option value="Ebooks">Ebooks</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Link de Pagamento / Checkout:</label>
+          <input type="url" id="prod-url" placeholder="https://pagamento.exemplo.com/checkout/123" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500" />
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="prod-vip" class="rounded bg-slate-950 border-slate-700 text-cyan-500" />
+          <label for="prod-vip" class="text-xs text-slate-300">Produto exclusivo para membros VIP</label>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="document.getElementById('modal-new-product').classList.add('hidden')" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs rounded-xl">Cancelar</button>
+          <button type="submit" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl">Salvar Produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="border-t border-slate-800/80 bg-slate-900/40 py-4 text-center text-xs text-slate-500">
-    Content OS &copy; {datetime.utcnow().year} &middot; Hospedado no Render com Gunicorn WSGI &middot; Bot Telegram Online 24/7
+    LyonBots &copy; {datetime.utcnow().year} &middot; Plataforma e Bot Telegram 24/7 &middot; Todos os direitos reservados.
   </footer>
+
+  <!-- Scripts -->
+  <script>
+    function switchTab(tabId) {{
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      
+      const targetTab = document.getElementById('tab-' + tabId);
+      const targetNav = document.getElementById('nav-' + tabId);
+      if (targetTab) targetTab.classList.add('active');
+      if (targetNav) targetNav.classList.add('active');
+
+      if (tabId === 'products') {{
+        loadProductsTable();
+      }}
+    }}
+
+    async function testBotToken() {{
+      const token = document.getElementById('cfg-token').value.trim();
+      const resultDiv = document.getElementById('token-test-result');
+      resultDiv.classList.remove('hidden', 'text-emerald-400', 'text-rose-400');
+      resultDiv.textContent = '⏳ Conectando ao Telegram...';
+      
+      if (!token) {{
+        resultDiv.className = 'mt-2 text-xs font-medium text-rose-400';
+        resultDiv.textContent = '❌ Informe o token antes de testar.';
+        return;
+      }}
+
+      try {{
+        const resp = await fetch('/api/bot/verify-token', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ token }})
+        }});
+        const data = await resp.json();
+        if (data.success && data.bot) {{
+          resultDiv.className = 'mt-2 text-xs font-medium text-emerald-400';
+          resultDiv.textContent = `✅ Conectado com sucesso! Bot: "${{data.bot.first_name}}" (@${{data.bot.username}})`;
+          if (data.bot.first_name) document.getElementById('cfg-botname').value = data.bot.first_name;
+          if (data.bot.username) document.getElementById('cfg-username').value = data.bot.username;
+        }} else {{
+          resultDiv.className = 'mt-2 text-xs font-medium text-rose-400';
+          resultDiv.textContent = `❌ Erro do Telegram: ${{data.error || 'Token rejeitado'}}`;
+        }}
+      }} catch (err) {{
+        resultDiv.className = 'mt-2 text-xs font-medium text-rose-400';
+        resultDiv.textContent = '❌ Falha de rede ao testar token.';
+      }}
+    }}
+
+    async function saveBotSettings() {{
+      const statusMsg = document.getElementById('save-status-msg');
+      statusMsg.textContent = 'Salvando...';
+      const payload = {{
+        telegramToken: document.getElementById('cfg-token').value.trim(),
+        botName: document.getElementById('cfg-botname').value.trim(),
+        botUsername: document.getElementById('cfg-username').value.trim().replace('@', ''),
+        channelId: document.getElementById('cfg-channel').value.trim(),
+        pixKey: document.getElementById('cfg-pix').value.trim(),
+      }};
+
+      try {{
+        const resp = await fetch('/api/bot/settings', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify(payload)
+        }});
+        const data = await resp.json();
+        if (data.success) {{
+          statusMsg.className = 'text-xs text-emerald-400 font-semibold';
+          statusMsg.textContent = '✅ Configurações salvas com sucesso!';
+          document.getElementById('sim-bot-name').textContent = payload.botName;
+          setTimeout(() => {{ statusMsg.textContent = ''; }}, 4000);
+        }}
+      }} catch (e) {{
+        statusMsg.className = 'text-xs text-rose-400';
+        statusMsg.textContent = '❌ Erro ao salvar configurações.';
+      }}
+    }}
+
+    async function saveBotContent() {{
+      const statusMsg = document.getElementById('content-status-msg');
+      statusMsg.textContent = 'Salvando...';
+      const payload = {{
+        welcomeMessage: document.getElementById('cnt-welcome').value,
+        vipDescription: document.getElementById('cnt-vipdesc').value,
+        vipPrice: parseFloat(document.getElementById('cnt-vipprice').value) || 47.00,
+        supportUser: document.getElementById('cnt-support').value.trim().replace('@', '')
+      }};
+
+      try {{
+        const resp = await fetch('/api/bot/settings', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify(payload)
+        }});
+        const data = await resp.json();
+        if (data.success) {{
+          statusMsg.className = 'text-xs text-emerald-400 font-semibold';
+          statusMsg.textContent = '✅ Conteúdos do bot salvos com sucesso!';
+          document.getElementById('sim-msg-welcome').textContent = payload.welcomeMessage;
+          setTimeout(() => {{ statusMsg.textContent = ''; }}, 4000);
+        }}
+      }} catch (e) {{
+        statusMsg.className = 'text-xs text-rose-400';
+        statusMsg.textContent = '❌ Erro ao salvar conteúdos.';
+      }}
+    }}
+
+    async function loadProductsTable() {{
+      const tbody = document.getElementById('products-table-body');
+      try {{
+        const resp = await fetch('/api/products');
+        const products = await resp.json();
+        if (!products.length) {{
+          tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-slate-500 text-xs">Nenhum produto cadastrado ainda. Clique em "+ Novo Produto".</td></tr>';
+          return;
+        }}
+        tbody.innerHTML = products.map(p => `
+          <tr class="hover:bg-slate-900/50 transition-colors">
+            <td class="px-4 py-3 font-semibold text-white">${{p.title}}</td>
+            <td class="px-4 py-3 font-mono text-cyan-400 font-bold">R$ ${{Number(p.price).toFixed(2)}}</td>
+            <td class="px-4 py-3 text-xs text-slate-400">${{p.category || 'Geral'}}</td>
+            <td class="px-4 py-3">
+              ${{p.is_vip ? '<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">VIP</span>' : '<span class="text-slate-500 text-[10px]">Normal</span>'}}
+            </td>
+            <td class="px-4 py-3">
+              ${{p.payment_url ? `<a href="${{p.payment_url}}" target="_blank" class="text-xs text-cyan-400 hover:underline">Link Checkout</a>` : '<span class="text-slate-600 text-xs">PIX Direto</span>'}}
+            </td>
+          </tr>
+        `).join('');
+      }} catch (e) {{
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-rose-400 text-xs">Falha ao carregar produtos.</td></tr>';
+      }}
+    }}
+
+    async function handleCreateProduct() {{
+      const payload = {{
+        title: document.getElementById('prod-title').value,
+        price: parseFloat(document.getElementById('prod-price').value),
+        category: document.getElementById('prod-cat').value,
+        payment_url: document.getElementById('prod-url').value,
+        is_vip: document.getElementById('prod-vip').checked
+      }};
+
+      try {{
+        const resp = await fetch('/api/products', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify(payload)
+        }});
+        if (resp.ok) {{
+          document.getElementById('modal-new-product').classList.add('hidden');
+          loadProductsTable();
+        }}
+      }} catch (e) {{
+        alert('Erro ao criar produto');
+      }}
+    }}
+
+    /* Simulador Telegram */
+    function appendSimMessage(text, isUser = false, buttons = null) {{
+      const container = document.getElementById('sim-messages');
+      const msgWrap = document.createElement('div');
+      msgWrap.className = isUser ? 'flex flex-col items-end max-w-[85%] ml-auto' : 'flex flex-col items-start max-w-[85%]';
+      
+      let buttonsHtml = '';
+      if (buttons && buttons.length) {{
+        buttonsHtml = `<div class="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-800">` + 
+          buttons.map(b => `<button onclick="sendSimUserCommand('${{b.cmd}}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold text-[11px] rounded-lg text-center transition-colors">${{b.label}}</button>`).join('') +
+          `</div>`;
+      }}
+
+      msgWrap.innerHTML = `
+        <div class="p-3 rounded-2xl ${{isUser ? 'rounded-tr-none bg-cyan-600 text-white' : 'rounded-tl-none bg-slate-900 border border-slate-800 text-slate-200'}} text-xs space-y-2 shadow-md">
+          <p class="whitespace-pre-line">${{text}}</p>
+          ${{buttonsHtml}}
+        </div>
+        <span class="text-[9px] text-slate-500 mt-1 ${{isUser ? 'mr-1' : 'ml-1'}}">Agora</span>
+      `;
+      container.appendChild(msgWrap);
+      container.scrollTop = container.scrollHeight;
+    }}
+
+    function sendSimUserCommand(cmd) {{
+      appendSimMessage(cmd, true);
+      setTimeout(() => {{
+        processSimBotResponse(cmd);
+      }}, 500);
+    }}
+
+    function handleSimSubmit() {{
+      const input = document.getElementById('sim-input');
+      const val = input.value.trim();
+      if (!val) return;
+      input.value = '';
+      sendSimUserCommand(val);
+    }}
+
+    function processSimBotResponse(text) {{
+      const cmd = text.toLowerCase();
+      const welcome = document.getElementById('cnt-welcome') ? document.getElementById('cnt-welcome').value : 'Olá! Bem-vindo ao bot.';
+      const vipDesc = document.getElementById('cnt-vipdesc') ? document.getElementById('cnt-vipdesc').value : 'Seja VIP por apenas R$ 47,00.';
+      const vipPrice = document.getElementById('cnt-vipprice') ? document.getElementById('cnt-vipprice').value : '47.00';
+      const pixKey = document.getElementById('cfg-pix') ? document.getElementById('cfg-pix').value : 'pix@lyonbots.com';
+
+      if (cmd.includes('/start') || cmd.includes('oi') || cmd.includes('ola')) {{
+        appendSimMessage(welcome, false, [
+          {{ label: '⭐ Assinar VIP', cmd: '/vip' }},
+          {{ label: '💰 Catálogo PIX', cmd: '/produtos' }},
+          {{ label: '📚 Conteúdos', cmd: '/conteudos' }},
+          {{ label: '📞 Suporte', cmd: '/suporte' }}
+        ]);
+      }} else if (cmd.includes('/vip') || cmd.includes('vip')) {{
+        appendSimMessage(`⭐ <b>PLANO VIP LYONBOTS</b>\n\n${{vipDesc}}\n\n💳 <b>Valor:</b> R$ ${{vipPrice}}/mês\n🔑 <b>Chave PIX:</b> <code>${{pixKey}}</code>\n\nEnvie o comprovante para liberar o acesso instantâneo!`, false, [
+          {{ label: '🔑 Copiar Chave PIX', cmd: 'Copiar PIX' }},
+          {{ label: '🔙 Voltar ao Início', cmd: '/start' }}
+        ]);
+      }} else if (cmd.includes('/produtos') || cmd.includes('produto') || cmd.includes('catalogo')) {{
+        appendSimMessage(`📦 <b>CATÁLOGO DE PRODUTOS DISPONÍVEIS</b>\n\n1. Curso Python Bot &amp; Automação (R$ 47,00)\n2. Pack de Prompts &amp; Scripts (R$ 29,90)\n3. Acesso VIP Vitalício (R$ 97,00)\n\nClique no botão abaixo para gerar a chave PIX:`, false, [
+          {{ label: '⭐ Quero o VIP', cmd: '/vip' }},
+          {{ label: '📞 Falar com Suporte', cmd: '/suporte' }}
+        ]);
+      }} else if (cmd.includes('/suporte') || cmd.includes('ajuda')) {{
+        appendSimMessage(`📞 <b>CENTRAL DE SUPORTE</b>\n\nNosso time de atendimento está à disposição no Telegram!\nFale diretamente com nosso especialista: @suporte_lyonbots`, false, [
+          {{ label: '🔙 Menu Principal', cmd: '/start' }}
+        ]);
+      }} else {{
+        appendSimMessage(`🤖 Recebi sua mensagem: "<i>${{text}}</i>".\n\nEscolha uma opção no menu ou digite <b>/start</b> para recomeçar.`, false, [
+          {{ label: '⭐ Ver Plano VIP', cmd: '/vip' }},
+          {{ label: '💰 Catálogo PIX', cmd: '/produtos' }}
+        ]);
+      }}
+    }}
+
+    function clearSimulatorChat() {{
+      const container = document.getElementById('sim-messages');
+      container.innerHTML = `
+        <div class="text-center my-2">
+          <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-slate-400">
+            Chat reiniciado &middot; Digite /start
+          </span>
+        </div>
+      `;
+    }}
+
+    // Auto load on open
+    document.addEventListener('DOMContentLoaded', () => {{
+      loadProductsTable();
+    }});
+  </script>
 </body>
 </html>"""
   return html
@@ -362,6 +957,20 @@ def test_telegram_token():
       }), 400
   except Exception as e:
     return jsonify({"success": False, "error": f"Falha de rede ao contatar Telegram: {str(e)}"}), 500
+
+@app.route('/api/bot/settings', methods=['GET', 'POST'])
+def bot_settings_endpoint():
+  """
+  Lê ou atualiza as configurações do robô (token, mensagens, chave PIX, etc).
+  Persiste em bot_settings.json e sincroniza com o ambiente.
+  """
+  if request.method == 'POST':
+    data = request.json or {}
+    updated = save_bot_settings(data)
+    if 'telegramToken' in data and data['telegramToken']:
+      os.environ['TELEGRAM_BOT_TOKEN'] = data['telegramToken'].strip()
+    return jsonify({"success": True, "settings": updated})
+  return jsonify(load_bot_settings())
 
 @app.route('/api/bot/broadcast', methods=['POST'])
 def send_broadcast():

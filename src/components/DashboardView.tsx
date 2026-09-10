@@ -16,7 +16,10 @@ import {
   Layers, 
   Bot,
   Flame,
-  ChevronRight
+  ChevronRight,
+  Settings,
+  Smartphone,
+  BookOpen
 } from 'lucide-react';
 import { ContentItem, ScheduledPost, TelegramUser, Order } from '../types';
 
@@ -29,6 +32,8 @@ interface DashboardViewProps {
   onNavigateTab: (tabId: string) => void;
   onDispatchPostNow: (postId: string) => void;
   onApproveOrder: (orderId: string) => void;
+  onOpenSettings?: () => void;
+  onOpenSimulator?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -39,7 +44,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNewContentModal,
   onNavigateTab,
   onDispatchPostNow,
-  onApproveOrder
+  onApproveOrder,
+  onOpenSettings,
+  onOpenSimulator
 }) => {
   const totalRevenue = orders
     .filter(o => o.status === 'pago')
@@ -56,13 +63,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold text-white tracking-tight">LAYON CONTENT HUB</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+              <span>LYONBOTS</span>
+              <span className="text-cyan-400 font-normal">CONTROL</span>
+            </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              Content OS v2.4
+              LyonBots OS v3.0
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Painel operacional central: distribuição, agendamento de posts e vendas no Telegram.
+            Painel operacional LyonBots: automação inteligente, agendamento de posts e vendas 24/7 no Telegram.
           </p>
         </div>
 
@@ -83,6 +93,81 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>+ NOVO CONTEÚDO</span>
           </button>
         </div>
+      </div>
+
+      {/* Quick Navigation & Direct Control Hub */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button
+          onClick={onOpenSettings}
+          className="p-3.5 rounded-xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-cyan-500/50 text-left transition-all group cursor-pointer shadow-sm hover:shadow-cyan-500/10"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors">
+              <Settings className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">Configurar</span>
+          </div>
+          <div className="font-bold text-xs text-white group-hover:text-cyan-300 transition-colors">
+            Chave & Token do Bot
+          </div>
+          <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
+            Definir token @BotFather e credenciais
+          </p>
+        </button>
+
+        <button
+          onClick={() => onNavigateTab('telegram')}
+          className="p-3.5 rounded-xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-purple-500/50 text-left transition-all group cursor-pointer shadow-sm hover:shadow-purple-500/10"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+              <Bot className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">Mensagens</span>
+          </div>
+          <div className="font-bold text-xs text-white group-hover:text-purple-300 transition-colors">
+            Conteúdos do Bot & Menus
+          </div>
+          <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
+            Boas-vindas /start, comandos e botões
+          </p>
+        </button>
+
+        <button
+          onClick={() => onNavigateTab('monetization')}
+          className="p-3.5 rounded-xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-emerald-500/50 text-left transition-all group cursor-pointer shadow-sm hover:shadow-emerald-500/10"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+              <DollarSign className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">Catálogo</span>
+          </div>
+          <div className="font-bold text-xs text-white group-hover:text-emerald-300 transition-colors">
+            Produtos & Vendas PIX
+          </div>
+          <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
+            Gerenciar preços, VIPs e links
+          </p>
+        </button>
+
+        <button
+          onClick={onOpenSimulator}
+          className="p-3.5 rounded-xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-blue-500/50 text-left transition-all group cursor-pointer shadow-sm hover:shadow-blue-500/10"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+              <Smartphone className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">Ao Vivo</span>
+          </div>
+          <div className="font-bold text-xs text-white group-hover:text-blue-300 transition-colors">
+            Simulador Telegram
+          </div>
+          <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
+            Testar respostas e botões no chat
+          </p>
+        </button>
       </div>
 
       {/* 5 Core Metric Cards exactly as depicted in user structure */}

@@ -52,6 +52,7 @@ import { PythonCodeViewer } from './components/PythonCodeViewer';
 import { TelegramSimulator } from './components/TelegramSimulator';
 import { NewContentModal } from './components/NewContentModal';
 import { BotTokenSettingsModal } from './components/BotTokenSettingsModal';
+import { PWAInstallBanner, PWAInstallHeaderButton } from './components/PWAInstallBanner';
 
 export default function App() {
   // Navigation active tab
@@ -341,20 +342,36 @@ export default function App() {
           </button>
 
           <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-white text-sm shadow-md shadow-cyan-500/30">
-              ⚡
+            <div className="relative group">
+              <img
+                src="/lyonbots-logo.jpg"
+                alt="LyonBots Logo Robô"
+                className="w-9 h-9 rounded-xl object-cover border border-cyan-400/60 shadow-md shadow-cyan-500/20"
+                referrerPolicy="no-referrer"
+              />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border border-slate-950 rounded-full animate-pulse" />
             </div>
             <div>
-              <span className="font-extrabold text-sm tracking-tight text-white">CONTENT OS</span>
-              <span className="hidden sm:inline-block ml-2 text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                Hub Telegram
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-sm tracking-tight text-white bg-gradient-to-r from-white via-slate-100 to-cyan-300 bg-clip-text text-transparent">
+                  LyonBots
+                </span>
+                <span className="hidden sm:inline-block text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                  Bot OS
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-mono hidden md:block leading-none">
+                Telegram AI & Automation
+              </p>
             </div>
           </div>
         </div>
 
         {/* Top actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* PWA Install Button */}
+          <PWAInstallHeaderButton />
+
           {/* Gear / Engrenagem: Configurações da Chave de Acesso do Bot */}
           <button
             onClick={() => setIsBotTokenModalOpen(true)}
@@ -506,7 +523,7 @@ export default function App() {
             {/* Nav Group 4: Telegram & Code */}
             <div className="space-y-1">
               <div className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                Automação & Código
+                Automação & Controle
               </div>
               <button
                 onClick={() => { setActiveTab('telegram'); setIsMobileMenuOpen(false); }}
@@ -515,7 +532,33 @@ export default function App() {
                 }`}
               >
                 <Bot className="w-4 h-4" />
-                <span>🤖 Bot Telegram & Menus</span>
+                <span>🤖 Conteúdo do Bot & Menus</span>
+              </button>
+
+              <button
+                onClick={() => { setIsBotTokenModalOpen(true); setIsMobileMenuOpen(false); }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Settings className="w-4 h-4 text-cyan-400" />
+                  <span>⚙️ Configurações & Token</span>
+                </div>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">
+                  Ajustar
+                </span>
+              </button>
+
+              <button
+                onClick={() => { setIsTelegramSimOpen(true); setIsMobileMenuOpen(false); }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Smartphone className="w-4 h-4 text-blue-400" />
+                  <span>📱 Simulador do Bot</span>
+                </div>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                  Chat
+                </span>
               </button>
 
               <button
@@ -568,6 +611,8 @@ export default function App() {
                 onNavigateTab={(tab) => setActiveTab(tab as any)}
                 onDispatchPostNow={handleDispatchPostNow}
                 onApproveOrder={handleApproveOrder}
+                onOpenSettings={() => setIsBotTokenModalOpen(true)}
+                onOpenSimulator={() => setIsTelegramSimOpen(true)}
               />
             )}
 
@@ -669,6 +714,14 @@ export default function App() {
         }}
         onOpenFullSettings={() => {
           setActiveTab('telegram');
+        }}
+      />
+
+      {/* PWA Auto-Install Prompt Banner / Modal */}
+      <PWAInstallBanner
+        onInstallSuccess={() => {
+          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+          showToast('🎉 LyonBots instalado com sucesso como Web App!');
         }}
       />
 
